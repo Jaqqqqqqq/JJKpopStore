@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import "../App.css";
+import CustomModal from "../Components/Common/CustomModal";
 
 const API =
   import.meta.env.VITE_API || "http://localhost:5000/api/v1";
@@ -11,6 +12,15 @@ const UsersList = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Custom popup state
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupTitle, setPopupTitle] = useState("");
+  const [popupMessage, setPopupMessage] = useState("");
+  const [popupType, setPopupType] = useState("info");
+  const [popupConfirmText, setPopupConfirmText] = useState("OK");
+  const [popupShowCancel, setPopupShowCancel] = useState(false);
+  const [popupAction, setPopupAction] = useState(null);
 
   const currentUser = JSON.parse(
     localStorage.getItem("user") || "null"
@@ -45,46 +55,101 @@ const UsersList = () => {
     getUsers();
   }, []);
 
+  // Show custom popup
+  const showPopup = ({
+    title,
+    message,
+    type = "info",
+    confirmText = "OK",
+    showCancel = false,
+    onConfirm = null,
+  }) => {
+    setPopupTitle(title);
+    setPopupMessage(message);
+    setPopupType(type);
+    setPopupConfirmText(confirmText);
+    setPopupShowCancel(showCancel);
+    setPopupAction(() => onConfirm);
+    setPopupOpen(true);
+  };
+
+  // Close popup without performing the action
+  const closePopup = () => {
+    setPopupOpen(false);
+    setPopupAction(null);
+  };
+
+  // Run the action only after confirmation
+  const handlePopupConfirm = () => {
+    const action = popupAction;
+
+    closePopup();
+
+    if (action) {
+      action();
+    }
+  };
+
   // Activate or deactivate a user
-  const updateUserStatus = async (user) => {
+  const updateUserStatus = (user) => {
     const newStatus = user.isActive === false;
-
     const action = newStatus ? "activate" : "deactivate";
+    const displayName = user.name || user.email;
 
-    if (
-      !window.confirm(
-        `Are you sure you want to ${action} ${user.name || user.email}?`
-      )
-    ) {
-      return;
-    }
+    showPopup({
+      title: newStatus
+        ? "Confirm Account Activation"
+        : "Confirm Account Deactivation",
+      message: `Are you sure you want to ${action} the account for ${displayName}?`,
+      type: "warning",
+      confirmText: newStatus
+        ? "Activate Account"
+        : "Deactivate Account",
+      showCancel: true,
 
-    try {
-      const { data } = await axios.put(
-        `${API}/admin/user/${user._id}/status`,
-        { isActive: newStatus },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+      onConfirm: async () => {
+        try {
+          const { data } = await axios.put(
+            `${API}/admin/user/${user._id}/status`,
+            { isActive: newStatus },
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+
+          setUsers((currentUsers) =>
+            currentUsers.map((item) =>
+              item._id === user._id
+                ? {
+                    ...item,
+                    isActive: data.user.isActive,
+                  }
+                : item
+            )
+          );
+
+          showPopup({
+            title: "Account Status Updated!",
+            message:
+              data.message ||
+              `The account has been ${
+                newStatus ? "activated" : "deactivated"
+              } successfully.`,
+            type: "success",
+          });
+        } catch (error) {
+          showPopup({
+            title: "Update Failed",
+            message:
+              error.response?.data?.message ||
+              "Failed to update account status.",
+            type: "error",
+          });
         }
-      );
-
-      setUsers((currentUsers) =>
-        currentUsers.map((item) =>
-          item._id === user._id
-            ? { ...item, isActive: data.user.isActive }
-            : item
-        )
-      );
-
-      window.alert(data.message || "Account status updated.");
-    } catch (error) {
-      window.alert(
-        error.response?.data?.message ||
-          "Failed to update account status."
-      );
-    }
+      },
+    });
   };
 
   return (
@@ -95,6 +160,8 @@ const UsersList = () => {
 
         <nav>
           <Link to="/dashboard">Dashboard</Link>
+          <Link to="/admin/products">Products</Link>
+          <Link to="/admin/orders">Orders</Link>
           <Link to="/admin/users">Users</Link>
         </nav>
 
@@ -120,7 +187,12 @@ const UsersList = () => {
           )}
 
           {!loading && !error && (
-            <div style={{ overflowX: "auto", marginTop: "24px" }}>
+            <div
+              style={{
+                overflowX: "auto",
+                marginTop: "24px",
+              }}
+            >
               <table
                 style={{
                   width: "100%",
@@ -200,6 +272,17 @@ const UsersList = () => {
           )}
         </div>
       </main>
+
+      <CustomModal
+        isOpen={popupOpen}
+        title={popupTitle}
+        message={popupMessage}
+        type={popupType}
+        confirmText={popupConfirmText}
+        showCancel={popupShowCancel}
+        onConfirm={handlePopupConfirm}
+        onCancel={closePopup}
+      />
     </div>
   );
 };

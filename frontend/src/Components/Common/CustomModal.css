@@ -1,0 +1,143 @@
+
+.custom-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(42, 24, 34, 0.48);
+  backdrop-filter: blur(3px);
+}
+
+.custom-modal {
+  width: 100%;
+  max-width: 420px;
+  padding: 30px 26px 24px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #f3dce5;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(45, 20, 32, 0.2);
+  animation: custom-modal-appear 0.18s ease-out;
+}
+
+.custom-modal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.custom-modal-icon.success {
+  color: #247a50;
+  background: #e5f7ed;
+}
+
+.custom-modal-icon.error {
+  color: #b42335;
+  background: #ffeaed;
+}
+
+.custom-modal-icon.warning {
+  color: #9a6200;
+  background: #fff3d6;
+}
+
+.custom-modal-icon.info {
+  color: #a83263;
+  background: #fce7f0;
+}
+
+.custom-modal h2 {
+  margin: 0 0 10px;
+  color: #382431;
+  font-size: 22px;
+}
+
+.custom-modal p {
+  margin: 0;
+  color: #74636d;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.custom-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.custom-modal-button {
+  min-height: 42px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.custom-modal-button.primary {
+  color: #fff;
+  background: #e96f98;
+}
+
+.custom-modal-button.primary:hover {
+  background: #d95382;
+}
+
+.custom-modal-button.secondary {
+  color: #55414c;
+  background: #f4edf1;
+}
+
+.custom-modal-button.secondary:hover {
+  background: #eadde4;
+}
+
+.custom-modal-button:focus-visible {
+  outline: 3px solid #b83268;
+  outline-offset: 3px;
+}
+
+@keyframes custom-modal-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 420px) {
+  .custom-modal {
+    padding: 24px 18px 20px;
+  }
+
+  .custom-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .custom-modal-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .custom-modal {
+    animation: none;
+  }
+}
