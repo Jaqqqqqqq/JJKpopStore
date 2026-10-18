@@ -7,27 +7,47 @@ export default function Home({ user, setPage }) {
   const [products, setProducts] = useState(sampleProducts);
   const [category, setCategory] = useState("All");
   const [cartCount, setCartCount] = useState(0);
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
 
   useEffect(() => {
     fetch(`${API}/products`)
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
-        if (data?.products?.length) setProducts(data.products);
+        if (data?.products?.length) {
+          setProducts(data.products);
+        }
       })
       .catch(() => {});
   }, []);
 
   const visibleProducts = useMemo(
     () =>
-      category === "All"
-        ? products
-        : products.filter((product) => product.category === category),
-    [category, products]
+      products.filter((product) => {
+        const matchesCategory =
+          category === "All" || product.category === category;
+
+        const price = Number(product.price);
+
+        const matchesMinPrice =
+          minPrice === "" || price >= Number(minPrice);
+
+        const matchesMaxPrice =
+          maxPrice === "" || price <= Number(maxPrice);
+
+        return (
+          matchesCategory &&
+          matchesMinPrice &&
+          matchesMaxPrice
+        );
+      }),
+    [category, products, minPrice, maxPrice]
   );
 
   return (
     <>
       <div id="top" />
+
       <Header
         cartCount={cartCount}
         user={user}
@@ -41,24 +61,33 @@ export default function Home({ user, setPage }) {
             <div className="eyebrow">
               YOUR K-POP COLLECTION STARTS HERE <span />
             </div>
+
             <h1>
               Bring Your Favorite
               <br />
               <em>Idols</em> Closer
             </h1>
+
             <p>
               Discover albums, photocards, lightsticks, posters, and more from
               your favorite K-pop artists. Official merch, best picks, and all
               in one place.
             </p>
+
             <a className="shop-button" href="#products">
               ♧ &nbsp; Shop Now &nbsp; →
             </a>
 
             <div className="perks">
-              <div>🚚 <span>Nationwide<br />Shipping</span></div>
-              <div>♢ <span>100% Original<br />Merchandise</span></div>
-              <div>▤ <span>Secure<br />Payment</span></div>
+              <div>
+                🚚 <span>Nationwide<br />Shipping</span>
+              </div>
+              <div>
+                ♢ <span>100% Original<br />Merchandise</span>
+              </div>
+              <div>
+                ▤ <span>Secure<br />Payment</span>
+              </div>
             </div>
           </div>
 
@@ -70,20 +99,26 @@ export default function Home({ user, setPage }) {
               />
               <div className="photo-note">K-POP ♡</div>
             </div>
+
             <div className="photo-small">
               <img
                 src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=420&q=85"
                 alt="Artist portrait"
               />
             </div>
+
             <div className="heart-lamp">♡</div>
             <span className="doodle doodle-one">☆</span>
             <span className="doodle doodle-two">♡</span>
           </div>
 
           <div className="slide-arrows">
-            <button aria-label="Previous slide">‹</button>
-            <button aria-label="Next slide">›</button>
+            <button type="button" aria-label="Previous slide">
+              ‹
+            </button>
+            <button type="button" aria-label="Next slide">
+              ›
+            </button>
           </div>
         </section>
 
@@ -91,19 +126,54 @@ export default function Home({ user, setPage }) {
           <p className="eyebrow centered">
             <span /> FIND YOUR FAVORITES <span />
           </p>
+
           <h2>
             Featured <em>Merchandise</em>
           </h2>
+
           <div className="categories">
             {categories.map((item) => (
               <button
                 key={item}
+                type="button"
                 onClick={() => setCategory(item)}
                 className={category === item ? "selected" : ""}
               >
                 {item}
               </button>
             ))}
+          </div>
+
+          <div className="price-filters">
+            <label htmlFor="minPrice">Min Price:</label>
+            <input
+              type="number"
+              id="minPrice"
+              min="0"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              placeholder="Enter minimum price"
+            />
+
+            <label htmlFor="maxPrice">Max Price:</label>
+            <input
+              type="number"
+              id="maxPrice"
+              min="0"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              placeholder="Enter maximum price"
+            />
+
+            <button
+              type="button"
+              onClick={() => {
+                setMinPrice("");
+                setMaxPrice("");
+              }}
+            >
+              Clear Price
+            </button>
           </div>
 
           <div className="product-grid">
@@ -117,18 +187,27 @@ export default function Home({ user, setPage }) {
                     }
                     alt={product.name}
                   />
-                  <button className="favorite" aria-label="Add to favorites">
+
+                  <button
+                    className="favorite"
+                    type="button"
+                    aria-label="Add to favorites"
+                  >
                     ♡
                   </button>
                 </div>
+
                 <div className="product-info">
                   <small>{product.artist || product.category}</small>
                   <h3>{product.name}</h3>
+
                   <div className="product-bottom">
                     <strong>
                       ₱{Number(product.price).toLocaleString("en-PH")}
                     </strong>
+
                     <button
+                      type="button"
                       onClick={() => setCartCount((count) => count + 1)}
                       aria-label={`Add ${product.name} to cart`}
                     >
@@ -140,6 +219,12 @@ export default function Home({ user, setPage }) {
             ))}
           </div>
 
+          {visibleProducts.length === 0 && (
+            <p className="no-products">
+              No products match your selected filters.
+            </p>
+          )}
+
           <a className="view-all" href="#products">
             View all merchandise →
           </a>
@@ -149,7 +234,10 @@ export default function Home({ user, setPage }) {
           <h2>
             Made for every <em>K-pop fan</em>
           </h2>
-          <p>Find your favorite albums, photocards, lightsticks, and more in one place.</p>
+          <p>
+            Find your favorite albums, photocards, lightsticks, and more in one
+            place.
+          </p>
         </section>
       </main>
 
