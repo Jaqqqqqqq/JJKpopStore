@@ -1,66 +1,111 @@
+
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import Header from "./Layout/Header";
 import Footer from "./Layout/Footer";
 import { API, categories, sampleProducts } from "./catalogData";
-import { useDispatch, useSelector } from "react-redux";
 import { addToCart } from "../actions/cartActions";
 
-export default function Home({ user, setPage }) {
+export default function Home({ user }) {
   const [products, setProducts] = useState(sampleProducts);
   const [category, setCategory] = useState("All");
-  const dispatch = useDispatch();
-  const cartItems = useSelector((state) => state.cart.items);
-  const cartCount = cartItems.reduce(
-    (total, item) => total + item.quantity,
-    0
-  );
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+  const [cartMessage, setCartMessage] = useState("");
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const cartItems = useSelector((state) => state.cart?.items || []);
+  const cartCount = cartItems.reduce(
+    (total, item) => total + (Number(item.quantity) || 0),
+    0
+  );
 
   useEffect(() => {
-    fetch(`${API}/products`)
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data) => {
-        if (data?.products?.length) {
+    let cancelled = false;
+
+    async function fetchProducts() {
+      try {
+        const response = await fetch(`${API}/products`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        if (!cancelled && data?.products?.length) {
           setProducts(data.products);
         }
-      })
-      .catch(() => {});
+      } catch {
+        // Keep sample products available if the API is unreachable.
+      }
+    }
+
+    fetchProducts();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const searchQuery = (searchParams.get("search") || "").trim().toLowerCase();
 
   const visibleProducts = useMemo(
     () =>
       products.filter((product) => {
         const matchesCategory =
           category === "All" || product.category === category;
-
         const price = Number(product.price);
-
         const matchesMinPrice =
           minPrice === "" || price >= Number(minPrice);
-
         const matchesMaxPrice =
           maxPrice === "" || price <= Number(maxPrice);
+        const matchesSearch =
+          !searchQuery ||
+          [product.name, product.artist, product.category]
+            .some((value) => value?.toLowerCase().includes(searchQuery));
 
         return (
           matchesCategory &&
           matchesMinPrice &&
-          matchesMaxPrice
+          matchesMaxPrice &&
+          matchesSearch
         );
       }),
-    [category, products, minPrice, maxPrice]
+    [products, category, minPrice, maxPrice, searchQuery]
   );
+
+  function openProduct(product) {
+    // Sample IDs such as "a" are not MongoDB product IDs.
+    if (!/^[a-f\d]{24}$/i.test(product?._id || "")) {
+      setCartMessage("This is a sample product. Select a saved store product to view its details.");
+      return;
+    }
+
+    navigate(`/product/${product._id}`);
+  }
+
+  function handleAddToCart(product) {
+    if (!product?._id || !/^[a-f\d]{24}$/i.test(product._id)) {
+      setCartMessage("This sample product is for display only. Please add a saved store product to your cart.");
+      return;
+    }
+
+    if (product.isAvailable === false || Number(product.stock) < 1) {
+      setCartMessage(`${product.name} is currently unavailable.`);
+      return;
+    }
+
+    dispatch(addToCart(product));
+    setCartMessage(`${product.name} added to your cart!`);
+  }
 
   return (
     <>
       <div id="top" />
 
-      <Header
-        cartCount={cartCount}
-        user={user}
-        page="home"
-        setPage={setPage}
-      />
+      <Header cartCount={cartCount} user={user} />
 
       <main>
         <section className="hero">
@@ -120,12 +165,8 @@ export default function Home({ user, setPage }) {
           </div>
 
           <div className="slide-arrows">
-            <button type="button" aria-label="Previous slide">
-              ‹
-            </button>
-            <button type="button" aria-label="Next slide">
-              ›
-            </button>
+            <button type="button" aria-label="Previous slide">‹</button>
+            <button type="button" aria-label="Next slide">›</button>
           </div>
         </section>
 
@@ -158,7 +199,7 @@ export default function Home({ user, setPage }) {
               id="minPrice"
               min="0"
               value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
+              onChange={(event) => setMinPrice(event.target.value)}
               placeholder="Enter minimum price"
             />
 
@@ -168,7 +209,7 @@ export default function Home({ user, setPage }) {
               id="maxPrice"
               min="0"
               value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
+              onChange={(event) => setMaxPrice(event.target.value)}
               placeholder="Enter maximum price"
             />
 
@@ -185,14 +226,33 @@ export default function Home({ user, setPage }) {
 
           <div className="product-grid">
             {visibleProducts.map((product, index) => (
-              <article className="product-card" key={product._id}>
+              <article
+                className="product-card"
+                key={product._id}
+                onClick={() => openProduct(product)}
+                onKeyDown={(event) => {
+                  if (
+                    (event.key === "Enter" || event.key === " ") &&
+                    event.target === event.currentTarget
+                  ) {
+                    event.preventDefault();
+                    openProduct(product);
+                  }
+                }}
+                role="link"
+                tabIndex={0}
+                aria-label={`View ${product.name} details`}
+              >
                 <div className="product-image">
                   <img
                     src={
                       product.image ||
+                      product.images?.[0]?.url ||
                       sampleProducts[index % sampleProducts.length].image
                     }
                     alt={product.name}
+                    onClick={() => openProduct(product)}
+                    style={{ cursor: "pointer" }}
                   />
 
                   <button
@@ -206,7 +266,13 @@ export default function Home({ user, setPage }) {
 
                 <div className="product-info">
                   <small>{product.artist || product.category}</small>
-                  <h3>{product.name}</h3>
+
+                  <h3
+                    onClick={() => openProduct(product)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {product.name}
+                  </h3>
 
                   <div className="product-bottom">
                     <strong>
@@ -215,7 +281,10 @@ export default function Home({ user, setPage }) {
 
                     <button
                       type="button"
-                      onClick={() => dispatch(addToCart(product))}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleAddToCart(product);
+                      }}
                       aria-label={`Add ${product.name} to cart`}
                     >
                       ＋
@@ -225,6 +294,12 @@ export default function Home({ user, setPage }) {
               </article>
             ))}
           </div>
+
+          {cartMessage && (
+            <p role="status" className="product-cart-message">
+              {cartMessage}
+            </p>
+          )}
 
           {visibleProducts.length === 0 && (
             <p className="no-products">

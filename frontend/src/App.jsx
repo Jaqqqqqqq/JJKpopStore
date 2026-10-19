@@ -13,6 +13,7 @@ import Cart from "./Components/Cart/Cart";
 import Checkout from "./Components/Cart/Checkout";
 import OrdersList from "./pages/OrdersList";
 import OrderSuccess from "./Components/Cart/OrderSuccess";
+import ProductDetails from "./Components/ProductDetails";
 
 function StoreApp() {
   const auth = useSelector((state) => state.user);
@@ -90,6 +91,16 @@ function StoreApp() {
           }
         />
       </Route>
+      <Route
+        path="/product/:id"
+        element={
+          user && user.role !== "admin" ? (
+            <ProductDetails />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
 
