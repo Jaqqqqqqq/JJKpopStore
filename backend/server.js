@@ -13,12 +13,14 @@ const PORT = process.env.PORT || 5000;
 const authRoutes = require("./routes/auth");
 const productRoutes = require("./routes/product");
 const userRoutes = require("./routes/user");
+const orderRoutes = require("./routes/order");
 
 app.use(cors());
 app.use(express.json());
 app.use("/api/v1", authRoutes);
 app.use("/api/v1", productRoutes);
 app.use("/api/v1", userRoutes);
+app.use("/api/v1", orderRoutes);
 
 app.get("/", (req, res) => {
   res.send("J&J K-Pop Store API is running!");

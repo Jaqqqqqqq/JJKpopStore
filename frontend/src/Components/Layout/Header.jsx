@@ -10,7 +10,7 @@ export default function Header({ cartCount = 0, user }) {
 
   function handleLogout() {
     dispatch(logout());
-    navigate("/register", { replace: true });
+    navigate("/login", { replace: true });
   }
 
   function handleSearch(event) {

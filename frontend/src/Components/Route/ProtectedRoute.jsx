@@ -1,8 +1,9 @@
+
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 export default function ProtectedRoute({ adminOnly = false }) {
-  const user = useSelector((state) => state.user);
+  const user = useSelector((state) => state.user.user);
   const location = useLocation();
 
   if (!user) {

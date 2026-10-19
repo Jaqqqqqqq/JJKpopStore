@@ -9,11 +9,15 @@ import NewProduct from "./pages/NewProduct";
 import EditProduct from "./pages/EditProduct";
 import UsersList from "./pages/UsersList";
 import "./App.css";
+import Cart from "./Components/Cart/Cart";
+import Checkout from "./Components/Cart/Checkout";
+import OrdersList from "./pages/OrdersList";
 
 function StoreApp() {
-  const user = useSelector((state) => state.user);
+  const auth = useSelector((state) => state.user);
+  const user = auth.user;
   const dispatch = useDispatch();
-const saveUser = (authenticatedUser) => {
+  const saveUser = (authenticatedUser) => {
     dispatch({ type: AUTH_SUCCESS, payload: authenticatedUser });
   };
 
@@ -41,6 +45,7 @@ const saveUser = (authenticatedUser) => {
       />
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/orders" element={<OrdersList />} />
         <Route path="/admin/product/new" element={<NewProduct />} />
         <Route path="/admin/users" element={<UsersList />} />
         <Route
@@ -48,9 +53,43 @@ const saveUser = (authenticatedUser) => {
           element={<EditProduct />}
         />
       </Route>
-      <Route path="/cart" element={<Navigate to="/" replace />} />
+      <Route
+        path="/cart"
+        element={
+          user ? (
+            user.role === "admin" ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Cart />
+            )
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/checkout"
+        element={
+          user && user.role !== "admin" ? (
+            <Checkout />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route element={<ProtectedRoute adminOnly />}>
+        <Route path="/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/orders" element={<OrdersList />} />
+        <Route path="/admin/product/new" element={<NewProduct />} />
+        <Route path="/admin/users" element={<UsersList />} />
+        <Route
+          path="/admin/product/:id/edit"
+          element={<EditProduct />}
+        />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+
   );
 }
 

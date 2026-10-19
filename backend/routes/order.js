@@ -8,25 +8,26 @@ const {
   myOrders,
   getAdminOrders,
   updateOrder,
-  deleteOrder
+  deleteOrder,
 } = require("../controllers/order");
 
-// Create an order
-router.post("/order/new", newOrder);
+const protect = require("../middleware/auth");
+const adminOnly = require("../middleware/adminOnly");
 
-// Get a specific order
-router.get("/order/:id", getSingleOrder);
+// Customer or admin must be authenticated to create an order.
+// The controller must still validate products and prices server-side.
+router.post("/order/new", protect, newOrder);
 
-// Get logged-in user's orders
-router.get("/myorders", myOrders);
+// Customers can only access their own order history.
+router.get("/myorders", protect, myOrders);
 
-// Admin: get all orders
-router.get("/admin/orders", getAdminOrders);
+// Admin order management.
+router.get("/admin/orders", protect, adminOnly, getAdminOrders);
+router.put("/admin/order/:id", protect, adminOnly, updateOrder);
+router.delete("/admin/order/:id", protect, adminOnly, deleteOrder);
 
-// Admin: update order status
-router.put("/admin/order/:id", updateOrder);
-
-// Admin: delete an order
-router.delete("/admin/order/:id", deleteOrder);
+// Authenticated users may access only their own order.
+// The controller must enforce ownership.
+router.get("/order/:id", protect, getSingleOrder);
 
 module.exports = router;

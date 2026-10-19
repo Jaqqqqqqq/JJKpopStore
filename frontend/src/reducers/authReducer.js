@@ -10,6 +10,9 @@ const initialState = {
   user: getStoredUser(),
   loading: false,
   error: null,
+  cart: {
+    items: []
+  }
 };
 
 export default function authReducer(state = initialState, action) {

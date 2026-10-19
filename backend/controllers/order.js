@@ -38,7 +38,7 @@ exports.newOrder = async (req, res) => {
   }
 };
 
-// Get one order by ID
+
 exports.getSingleOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
@@ -47,21 +47,33 @@ exports.getSingleOrder = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
-    res.status(200).json({
+    const isOwner =
+      String(order.user._id) === String(req.user._id);
+    const isAdmin = req.user.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not allowed to view this order",
+      });
+    }
+
+    return res.status(200).json({
       success: true,
-      order
+      order,
     });
   } catch (error) {
-    res.status(400).json({
+    return res.status(400).json({
       success: false,
-      message: "Invalid order ID"
+      message: "Invalid order ID",
     });
   }
 };
+
 
 // Get orders for the logged-in user
 exports.myOrders = async (req, res) => {
@@ -102,34 +114,54 @@ exports.getAdminOrders = async (req, res) => {
   }
 };
 
-// Update order status
+// Update order status (admin only; route is protected)
 exports.updateOrder = async (req, res) => {
   try {
+    const { status } = req.body;
+
+    const allowedStatuses = [
+      "Pending",
+      "Processing",
+      "Shipped",
+      "Completed",
+      "Cancelled",
+    ];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order status",
+      });
+    }
+
     const order = await Order.findById(req.params.id);
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
-    order.orderStatus = req.body.status;
+    order.orderStatus = status;
 
-    if (req.body.status === "Delivered") {
-      order.deliveredAt = Date.now();
+    if (status === "Completed") {
+      order.deliveredAt = new Date();
+    } else {
+      order.deliveredAt = undefined;
     }
 
     await order.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      order
+      message: "Order status updated successfully",
+      order,
     });
   } catch (error) {
-    res.status(400).json({
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message: "Failed to update order status",
     });
   }
 };
@@ -157,5 +189,177 @@ exports.deleteOrder = async (req, res) => {
       success: false,
       message: "Unable to delete order"
     });
+  }
+};
+
+
+exports.newOrder = async (req, res) => {
+  const mongoose = require("mongoose");
+  const session = await mongoose.startSession();
+
+  try {
+    const { shippingInfo, items } = req.body;
+
+    const requiredFields = [
+      "address",
+      "city",
+      "phoneNo",
+      "postalCode",
+      "country",
+    ];
+
+    if (
+      !shippingInfo ||
+      requiredFields.some(
+        (field) =>
+          typeof shippingInfo[field] !== "string" ||
+          !shippingInfo[field].trim()
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide complete shipping information",
+      });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Your cart is empty",
+      });
+    }
+
+    // Validate and combine duplicate product entries.
+    const quantities = new Map();
+
+    for (const item of items) {
+      const { productId, quantity } = item || {};
+
+      if (
+        typeof productId !== "string" ||
+        !mongoose.isValidObjectId(productId) ||
+        !Number.isSafeInteger(quantity) ||
+        quantity < 1
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid product or quantity",
+        });
+      }
+
+      const id = String(productId);
+      const combined = (quantities.get(id) || 0) + quantity;
+
+      if (!Number.isSafeInteger(combined)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid product quantity",
+        });
+      }
+
+      quantities.set(id, combined);
+    }
+
+    let createdOrder;
+
+    await session.withTransaction(async () => {
+      const orderItems = [];
+      let itemsPrice = 0;
+
+      for (const [productId, quantity] of quantities) {
+        const product = await Product.findOne({
+          _id: productId,
+          isAvailable: true,
+        }).session(session);
+
+        if (!product) {
+          throw new Error(`Product ${productId} is unavailable`);
+        }
+
+        // Decrement only if enough stock remains.
+        const updatedProduct = await Product.findOneAndUpdate(
+          {
+            _id: product._id,
+            isAvailable: true,
+            stock: { $gte: quantity },
+          },
+          { $inc: { stock: -quantity } },
+          { new: true, session }
+        );
+
+        if (!updatedProduct) {
+          throw new Error(`Insufficient stock for ${product.name}`);
+        }
+
+        const price = Number(product.price);
+        const lineTotal = price * quantity;
+
+        if (
+          !Number.isFinite(price) ||
+          price < 0 ||
+          !Number.isFinite(lineTotal) ||
+          !Number.isFinite(itemsPrice + lineTotal)
+        ) {
+          throw new Error("Invalid product price");
+        }
+
+        itemsPrice += lineTotal;
+
+        orderItems.push({
+          name: product.name,
+          quantity,
+          image: product.image || product.images?.[0]?.url || "",
+          price,
+          product: product._id,
+        });
+      }
+
+      // Tax and shipping remain zero until store policies are defined.
+      const taxPrice = 0;
+      const shippingPrice = 0;
+      const totalPrice = itemsPrice + taxPrice + shippingPrice;
+
+      const orders = await Order.create(
+        [
+          {
+            shippingInfo: Object.fromEntries(
+              requiredFields.map((field) => [
+                field,
+                shippingInfo[field].trim(),
+              ])
+            ),
+            orderItems,
+            user: req.user._id,
+            itemsPrice,
+            taxPrice,
+            shippingPrice,
+            totalPrice,
+          },
+        ],
+        { session }
+      );
+
+      createdOrder = orders[0];
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Order created successfully",
+      order: createdOrder,
+    });
+  } catch (error) {
+    const clientError =
+      error.message.startsWith("Product ") ||
+      error.message.startsWith("Insufficient stock") ||
+      error.message === "Invalid product price";
+
+    return res.status(clientError ? 400 : 500).json({
+      success: false,
+      message: clientError
+        ? error.message
+        : "Unable to create order",
+    });
+  } finally {
+    await session.endSession();
   }
 };

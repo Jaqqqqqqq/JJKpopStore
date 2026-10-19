@@ -1241,3 +1241,304 @@ footer {
     grid-column: auto;
   }
 }
+
+/* Shopping Cart */
+.cart-page {
+  max-width: 1200px;
+  min-height: 60vh;
+  margin: 0 auto;
+  padding: 40px 24px 60px;
+  color: #30232b;
+}
+
+.cart-page > h1 {
+  margin-bottom: 8px;
+}
+
+.cart-page > p {
+  color: #74636c;
+  margin-bottom: 28px;
+}
+
+.cart-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  align-items: start;
+}
+
+.cart-items,
+.cart-summary,
+.cart-empty {
+  background: #fff;
+  border: 1px solid #ead5df;
+  border-radius: 12px;
+}
+
+.cart-items {
+  padding: 20px;
+}
+
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid #f0e4e9;
+}
+
+.cart-item:first-child {
+  padding-top: 0;
+}
+
+.cart-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.cart-item-image {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff8fb;
+}
+
+.cart-item-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.cart-item-details h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+.cart-item-details p {
+  margin: 0 0 12px;
+  color: #74636c;
+}
+
+.cart-quantity {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #ead5df;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.cart-quantity button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.cart-quantity button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cart-item-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.cart-remove,
+.cart-continue {
+  color: #a13f68;
+}
+
+.cart-remove {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.cart-summary {
+  padding: 24px;
+}
+
+.cart-summary h2 {
+  font-size: 20px;
+  margin: 0 0 24px;
+}
+
+.cart-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.cart-total {
+  border-top: 1px solid #ead5df;
+  padding-top: 18px;
+  font-size: 18px;
+}
+
+.cart-note {
+  color: #74636c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cart-button {
+  display: block;
+  width: 100%;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #a13f68;
+  color: white;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.cart-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cart-continue {
+  display: block;
+  text-align: center;
+  margin-top: 18px;
+}
+
+.cart-empty {
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.cart-empty .cart-button {
+  max-width: 240px;
+  margin: 24px auto 0;
+}
+
+@media (max-width: 800px) {
+  .cart-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .cart-page {
+    padding: 24px 14px 40px;
+  }
+
+  .cart-items {
+    padding: 14px;
+  }
+
+  .cart-item {
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .cart-item-image {
+    width: 76px;
+    height: 76px;
+  }
+
+  .cart-item-details {
+    flex-basis: calc(100% - 100px);
+  }
+
+  .cart-item-total {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+
+/* Admin Orders page */
+.orders-card {
+  width: 100%;
+  min-width: 0;
+  padding: 28px;
+  background: #fff;
+  border: 1px solid #f0d5e1;
+  border-radius: 18px;
+  box-sizing: border-box;
+}
+
+.orders-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.orders-header h1 {
+  margin: 0 0 14px;
+  color: #382832;
+  font-size: 2.4rem;
+}
+
+.orders-header p {
+  margin: 0;
+  color: #382832;
+}
+
+.orders-table {
+  width: 100%;
+}
+
+.orders-table th,
+.orders-table td {
+  padding: 16px 14px;
+  text-align: left;
+  border-bottom: 1px solid #f0d5e1;
+  white-space: nowrap;
+}
+
+.order-status {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fce7ef;
+  color: #8d3158;
+  font-weight: 600;
+}
+
+.status-completed {
+  background: #e5f6e9;
+  color: #23743b;
+}
+
+.status-cancelled {
+  background: #fde8e8;
+  color: #a52828;
+}
+
+.status-shipped {
+  background: #e6efff;
+  color: #2856a6;
+}
+
+.status-pending {
+  background: #fff2d6;
+  color: #8a5a00;
+}
+
+@media (max-width: 768px) {
+  .orders-card {
+    padding: 18px;
+  }
+
+  .orders-header h1 {
+    font-size: 1.8rem;
+  }
+}

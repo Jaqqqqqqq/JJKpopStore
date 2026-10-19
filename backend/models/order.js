@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 
 const orderSchema = mongoose.Schema({
@@ -87,8 +86,15 @@ const orderSchema = mongoose.Schema({
 
   orderStatus: {
     type: String,
+    enum: [
+      "Pending",
+      "Processing",
+      "Shipped",
+      "Completed",
+      "Cancelled",
+    ],
     required: true,
-    default: "Processing"
+    default: "Processing",
   },
 
   deliveredAt: Date,

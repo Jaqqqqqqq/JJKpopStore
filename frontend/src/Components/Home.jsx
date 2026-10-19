@@ -2,11 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import Header from "./Layout/Header";
 import Footer from "./Layout/Footer";
 import { API, categories, sampleProducts } from "./catalogData";
+import { useDispatch, useSelector } from "react-redux";
+import { addToCart } from "../actions/cartActions";
 
 export default function Home({ user, setPage }) {
   const [products, setProducts] = useState(sampleProducts);
   const [category, setCategory] = useState("All");
-  const [cartCount, setCartCount] = useState(0);
+  const dispatch = useDispatch();
+  const cartItems = useSelector((state) => state.cart.items);
+  const cartCount = cartItems.reduce(
+    (total, item) => total + item.quantity,
+    0
+  );
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
@@ -208,7 +215,7 @@ export default function Home({ user, setPage }) {
 
                     <button
                       type="button"
-                      onClick={() => setCartCount((count) => count + 1)}
+                      onClick={() => dispatch(addToCart(product))}
                       aria-label={`Add ${product.name} to cart`}
                     >
                       ＋
