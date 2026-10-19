@@ -119,15 +119,15 @@ exports.updateOrder = async (req, res) => {
   try {
     const { status } = req.body;
 
-    const allowedStatuses = [
-      "Pending",
-      "Processing",
-      "Shipped",
-      "Completed",
-      "Cancelled",
-    ];
+    const transitions = {
+      Pending: ["Processing", "Cancelled"],
+      Processing: ["Shipped"],
+      Shipped: ["Completed"],
+      Completed: [],
+      Cancelled: [],
+    };
 
-    if (!allowedStatuses.includes(status)) {
+    if (!Object.hasOwn(transitions, status)) {
       return res.status(400).json({
         success: false,
         message: "Invalid order status",
@@ -143,12 +143,20 @@ exports.updateOrder = async (req, res) => {
       });
     }
 
+    if (!transitions[order.orderStatus]?.includes(status)) {
+      return res.status(409).json({
+        success: false,
+        message:
+          order.orderStatus === "Completed" || order.orderStatus === "Cancelled"
+            ? `Orders with status ${order.orderStatus} cannot be changed`
+            : `Cannot change order status from ${order.orderStatus} to ${status}`,
+      });
+    }
+
     order.orderStatus = status;
 
     if (status === "Completed") {
       order.deliveredAt = new Date();
-    } else {
-      order.deliveredAt = undefined;
     }
 
     await order.save();
@@ -159,9 +167,12 @@ exports.updateOrder = async (req, res) => {
       order,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.name === "CastError" ? 400 : 500).json({
       success: false,
-      message: "Failed to update order status",
+      message:
+        error.name === "CastError"
+          ? "Invalid order ID"
+          : "Failed to update order status",
     });
   }
 };

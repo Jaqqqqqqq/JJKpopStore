@@ -1,6 +1,19 @@
 const jwt = require("jsonwebtoken");
 
 function adminOnly(req, res, next) {
+  // When authentication middleware has already loaded the account, use its
+  // current database role instead of trusting a possibly stale JWT claim.
+  if (req.user) {
+    if (String(req.user.role).toLowerCase() !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin access required",
+      });
+    }
+
+    return next();
+  }
+
   const authorization = req.headers.authorization;
 
   if (!authorization?.startsWith("Bearer ")) {

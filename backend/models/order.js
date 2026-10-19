@@ -94,7 +94,7 @@ const orderSchema = mongoose.Schema({
       "Cancelled",
     ],
     required: true,
-    default: "Processing",
+    default: "Pending",
   },
 
   deliveredAt: Date,
