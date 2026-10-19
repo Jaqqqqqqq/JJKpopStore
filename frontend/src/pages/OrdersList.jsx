@@ -11,6 +11,13 @@ const STATUSES = [
   "Completed",
   "Cancelled",
 ];
+const STATUS_TRANSITIONS = {
+  Pending: ["Processing", "Cancelled"],
+  Processing: ["Shipped"],
+  Shipped: ["Completed"],
+  Completed: [],
+  Cancelled: [],
+};
 
 export default function OrdersList() {
   const [orders, setOrders] = useState([]);
@@ -91,7 +98,9 @@ export default function OrdersList() {
         [orderId]: data.order.orderStatus,
       }));
 
-      setMessage(`Order ${orderId.slice(-8)} updated successfully.`);
+      setMessage(
+        `Order ${orderId.slice(-8)} status saved as ${data.order.orderStatus}.`
+      );
     } catch (err) {
       setError(err.message);
       await loadOrders().catch(() => {});
@@ -188,14 +197,19 @@ export default function OrdersList() {
                             }
                             disabled={
                               savingId === order._id ||
-                              order.orderStatus === "Cancelled"
+                              STATUS_TRANSITIONS[order.orderStatus]?.length === 0
                             }
                           >
-                            {STATUSES.map((status) => (
+                            {[
+                              order.orderStatus,
+                              ...(STATUS_TRANSITIONS[order.orderStatus] || []),
+                            ]
+                              .filter((status) => STATUSES.includes(status))
+                              .map((status) => (
                               <option key={status} value={status}>
                                 {status}
                               </option>
-                            ))}
+                              ))}
                           </select>
                         </td>
                         <td>

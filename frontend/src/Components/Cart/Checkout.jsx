@@ -85,13 +85,7 @@ export default function Checkout() {
       }
 
       dispatch(clearCart());
-      navigate("/", {
-        replace: true,
-        state: {
-          orderSuccess: true,
-          orderId: data.order._id,
-        },
-      });
+      navigate(`/order/success/${data.order._id}`, { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.message ||

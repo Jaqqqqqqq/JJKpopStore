@@ -12,6 +12,7 @@ import "./App.css";
 import Cart from "./Components/Cart/Cart";
 import Checkout from "./Components/Cart/Checkout";
 import OrdersList from "./pages/OrdersList";
+import OrderSuccess from "./Components/Cart/OrderSuccess";
 
 function StoreApp() {
   const auth = useSelector((state) => state.user);
@@ -77,14 +78,16 @@ function StoreApp() {
           )
         }
       />
-      <Route element={<ProtectedRoute adminOnly />}>
-        <Route path="/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/orders" element={<OrdersList />} />
-        <Route path="/admin/product/new" element={<NewProduct />} />
-        <Route path="/admin/users" element={<UsersList />} />
+      <Route element={<ProtectedRoute />}>
         <Route
-          path="/admin/product/:id/edit"
-          element={<EditProduct />}
+          path="/order/success/:id"
+          element={
+            user && user.role !== "admin" ? (
+              <OrderSuccess />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
         />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
