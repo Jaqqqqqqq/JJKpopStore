@@ -37,6 +37,25 @@ export const authenticate = (kind, credentials) => async (dispatch) => {
   }
 };
 
+export const authenticateGoogle = (idToken) => async (dispatch) => {
+  dispatch({ type: AUTH_REQUEST });
+  try {
+    const { data } = await axios.post(`${API}/auth/google`, { idToken });
+    const user = {
+      ...data.user,
+      role: String(data.user?.role || "user").toLowerCase(),
+    };
+    if (data.token) localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(user));
+    dispatch({ type: AUTH_SUCCESS, payload: user });
+    return user;
+  } catch (error) {
+    const message = error.response?.data?.message || "Google sign-in failed.";
+    dispatch({ type: AUTH_FAILURE, payload: message });
+    throw new Error(message, { cause: error });
+  }
+};
+
 export const logout = () => (dispatch) => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");

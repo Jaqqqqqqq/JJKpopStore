@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { useFormik } from "formik";
-import { authenticate } from "../../actions/userActions";
+import { authenticate, authenticateGoogle } from "../../actions/userActions";
+import { signInWithGoogle } from "../../firebase";
 import {
   loginValidationSchema,
   registerValidationSchema,
@@ -20,6 +21,7 @@ const initialValues = {
 export default function AuthPage({ mode, onAuth }) {
   const isRegister = mode === "register";
   const [message, setMessage] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,6 +86,24 @@ export default function AuthPage({ mode, onAuth }) {
     formik.touched[name] && formik.errors[name] ? (
       <span className="field-error" role="alert">{formik.errors[name]}</span>
     ) : null;
+
+  const handleGoogleLogin = async () => {
+    setMessage("");
+    setGoogleLoading(true);
+    try {
+      const idToken = await signInWithGoogle();
+      const authenticatedUser = await dispatch(authenticateGoogle(idToken));
+      onAuth(authenticatedUser);
+      const destination = authenticatedUser.role === "admin"
+        ? "/dashboard"
+        : location.state?.from?.pathname || "/";
+      navigate(destination, { replace: true });
+    } catch (error) {
+      setMessage(error.message || "Google sign-in failed. Please try again.");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   return (
     <main className="auth-wrap">
@@ -176,7 +196,7 @@ export default function AuthPage({ mode, onAuth }) {
 
           {message && <p className="form-message" role="alert">{message}</p>}
 
-          <button className="auth-submit" disabled={formik.isSubmitting}>
+          <button className="auth-submit" disabled={formik.isSubmitting || googleLoading}>
             {formik.isSubmitting
               ? "Please wait..."
               : isRegister
@@ -184,6 +204,17 @@ export default function AuthPage({ mode, onAuth }) {
                 : "Log in"}
           </button>
         </form>
+
+        <div className="auth-divider"><span>or</span></div>
+        <button
+          className="google-auth-button"
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={formik.isSubmitting || googleLoading}
+        >
+          <span className="google-auth-mark" aria-hidden="true">G</span>
+          {googleLoading ? "Connecting to Google..." : "Continue with Google"}
+        </button>
 
         <p className="auth-switch">
           {isRegister ? "Already have an account?" : "New to J&J K-POP?"}{" "}

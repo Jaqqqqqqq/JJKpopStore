@@ -19,12 +19,14 @@ const userSchema = new mongoose.Schema({
   address: {
     type: String,
     trim: true,
-    required: [true, "Please enter your address"]
+    default: "",
+    required: function requireAddress() { return !this.googleId; }
   },
   phoneNumber: {
     type: String,
     trim: true,
-    required: [true, "Please enter your phone number"]
+    default: "",
+    required: function requirePhoneNumber() { return !this.googleId; }
   },
   email: {
     type: String,
@@ -33,9 +35,14 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, "Please enter your password"],
+    required: function requirePassword() { return !this.googleId; },
     minlength: 6,
     select: false
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true,
   },
   role: {
     type: String,

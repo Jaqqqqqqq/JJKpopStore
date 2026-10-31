@@ -16,6 +16,7 @@
     "axios": "^1.19.0",
     "datatables.net-dt": "^3.1.4",
     "datatables.net-react": "^2.0.0",
+    "firebase": "^13.1.0",
     "formik": "^2.4.9",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

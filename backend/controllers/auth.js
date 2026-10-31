@@ -2,6 +2,32 @@
 const User = require("../models/user");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { cert, getApps, initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
+
+function createAppToken(user) {
+  return jwt.sign(
+    { id: user._id, role: user.role },
+    process.env.JWT_SECRET || "jj-kpop-development-secret-change-before-deploy",
+    { expiresIn: "1d" }
+  );
+}
+
+function getFirebaseAuth() {
+  if (!getApps().length) {
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+    if (!projectId || !clientEmail || !privateKey) {
+      throw new Error("Firebase Admin credentials are not configured.");
+    }
+    initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
+      projectId,
+    });
+  }
+  return getAuth();
+}
 
 // Register a new user
 exports.registerUser = async (req, res) => {
@@ -95,11 +121,7 @@ exports.loginUser = async (req, res) => {
   });
 }
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET || "jj-kpop-development-secret-change-before-deploy",
-      { expiresIn: "1d" }
-    );
+    const token = createAppToken(user);
 
     res.status(200).json({
       success: true,
@@ -120,6 +142,93 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Unable to log in"
+    });
+  }
+};
+
+// Verify a Firebase Google ID token and issue the store's normal JWT.
+exports.googleLogin = async (req, res) => {
+  try {
+    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+      return res.status(503).json({
+        success: false,
+        message: "Firebase Admin settings are missing from backend/.env. Add FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY, then restart the backend.",
+      });
+    }
+
+    const { idToken } = req.body;
+    if (typeof idToken !== "string" || !idToken) {
+      return res.status(400).json({ success: false, message: "A Google sign-in token is required." });
+    }
+
+    let googleUser;
+    try {
+      googleUser = await getFirebaseAuth().verifyIdToken(idToken);
+    } catch (verificationError) {
+      console.error("Firebase ID token verification failed:", verificationError.code || "unknown", verificationError.message);
+      const projectMismatch = /incorrect [\"']?(aud|iss)|project id|project-id/i.test(verificationError.message || "");
+      return res.status(401).json({
+        success: false,
+        message: projectMismatch
+          ? "Google token belongs to a different Firebase project. Match VITE_FIREBASE_PROJECT_ID and FIREBASE_PROJECT_ID, then restart both apps."
+          : "Firebase rejected the Google token. Check the backend service-account key and restart the backend.",
+      });
+    }
+
+    const email = String(googleUser.email || "").trim().toLowerCase();
+    if (!email || googleUser.email_verified !== true || !googleUser.uid) {
+      return res.status(401).json({ success: false, message: "Use a verified Google email address." });
+    }
+
+    let user = await User.findOne({ email });
+    if (user) {
+      if (user.googleId && user.googleId !== googleUser.uid) {
+        return res.status(409).json({ success: false, message: "This email is linked to a different Google account." });
+      }
+      if (user.isActive === false) {
+        return res.status(403).json({ success: false, message: "Your account has been deactivated. Please contact the administrator." });
+      }
+      if (!user.googleId) {
+        user.googleId = googleUser.uid;
+        await user.save();
+      }
+    } else {
+      const displayName = String(googleUser.name || email.split("@")[0]).trim();
+      const nameParts = displayName.split(/\s+/);
+      user = await User.create({
+        name: displayName,
+        firstName: nameParts[0] || "",
+        lastName: nameParts.slice(1).join(" "),
+        email,
+        googleId: googleUser.uid,
+        address: "",
+        phoneNumber: "",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Google login successful",
+      token: createAppToken(user),
+      user: {
+        id: user._id,
+        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        address: user.address,
+        phoneNumber: user.phoneNumber,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Google login error:", error.message);
+    const notConfigured = error.message === "Firebase Admin credentials are not configured.";
+    return res.status(notConfigured ? 503 : 500).json({
+      success: false,
+      message: notConfigured
+        ? "Google sign-in is not configured on the server yet."
+        : "Unable to sign in with Google.",
     });
   }
 };
