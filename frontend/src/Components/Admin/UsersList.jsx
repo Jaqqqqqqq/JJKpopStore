@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
-import "../App.css";
-import CustomModal from "../Components/Common/CustomModal";
+import "../../App.css";
+import CustomModal from "../Common/CustomModal";
 
 const API =
   import.meta.env.VITE_API || "http://localhost:5000/api/v1";

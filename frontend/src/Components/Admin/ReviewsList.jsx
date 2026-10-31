@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import CustomModal from "../Components/Common/CustomModal";
-import "../App.css";
+import CustomModal from "../Common/CustomModal";
+import "../../App.css";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000/api/v1";
 

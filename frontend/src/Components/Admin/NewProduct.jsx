@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useFormik } from "formik";
 import axios from "axios";
-import "../App.css";
-import CustomModal from "../Components/Common/CustomModal";
-import { newProductValidationSchema } from "../schemas/formSchemas";
+import "../../App.css";
+import CustomModal from "../Common/CustomModal";
+import { newProductValidationSchema } from "../../schemas/formSchemas";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000/api/v1";
 const categories = ["Albums", "Photocards", "Lightsticks", "Posters", "Accessories", "Other"];

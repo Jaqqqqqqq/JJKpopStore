@@ -2,10 +2,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-import Header from "../Components/Layout/Header";
-import Footer from "../Components/Layout/Footer";
-import { API } from "../api";
-import "../App.css";
+import Header from "../Layout/Header";
+import Footer from "../Layout/Footer";
+import { API } from "../../api";
+import "../../App.css";
 
 const ORDER_TABS = [
   { label: "Pending", statuses: ["Pending"] },

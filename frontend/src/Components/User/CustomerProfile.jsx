@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
-import Header from "../Components/Layout/Header";
-import Footer from "../Components/Layout/Footer";
-import { API } from "../api";
-import { AUTH_SUCCESS } from "../actions/userActions";
-import { profileValidationSchema } from "../schemas/formSchemas";
+import Header from "../Layout/Header";
+import Footer from "../Layout/Footer";
+import { API } from "../../api";
+import { AUTH_SUCCESS } from "../../actions/userActions";
+import { profileValidationSchema } from "../../schemas/formSchemas";
 
 export default function CustomerProfile() {
   const dispatch = useDispatch();

@@ -1,8 +1,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import Pagination from "@mui/material/Pagination";
 import Header from "./Layout/Header";
 import Footer from "./Layout/Footer";
 import { categories, sampleProducts } from "./catalogData";
@@ -10,7 +9,6 @@ import { addToCart } from "../actions/cartActions";
 import { fetchProducts } from "../actions/productActions";
 
 export default function Home({ user }) {
-  const [listMode, setListMode] = useState("pages");
   const [currentPage, setCurrentPage] = useState(1);
   const [category, setCategory] = useState("All");
   const [minPrice, setMinPrice] = useState("");
@@ -21,6 +19,7 @@ export default function Home({ user }) {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const loadMoreRef = useRef(null);
   const searchQuery = (searchParams.get("search") || "").trim().toLowerCase();
@@ -51,22 +50,30 @@ export default function Home({ user }) {
     };
     if (minPrice !== "") filters.minPrice = minPrice;
     if (maxPrice !== "") filters.maxPrice = maxPrice;
-    dispatch(fetchProducts(filters, listMode === "infinite" && currentPage > 1)).catch(() => {});
-  }, [dispatch, currentPage, listMode, category, minPrice, maxPrice, minimumRating, reviewFilter, searchQuery]);
+    dispatch(fetchProducts(filters, currentPage > 1)).catch(() => {});
+  }, [dispatch, currentPage, category, minPrice, maxPrice, minimumRating, reviewFilter, searchQuery]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [category, minPrice, maxPrice, minimumRating, reviewFilter, searchQuery, listMode]);
+  }, [category, minPrice, maxPrice, minimumRating, reviewFilter, searchQuery]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
-    if (listMode !== "infinite" || !hasMore || productsLoading || !sentinel) return undefined;
+    if (!hasMore || productsLoading || !sentinel) return undefined;
+    if (!("IntersectionObserver" in window)) return undefined;
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) setCurrentPage((page) => page + 1);
     }, { rootMargin: "250px" });
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [listMode, hasMore, productsLoading, products.length]);
+  }, [hasMore, productsLoading, products.length]);
+
+  useEffect(() => {
+    if (location.hash !== "#products") return;
+    requestAnimationFrame(() => {
+      document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
+    });
+  }, [location.pathname, location.hash, location.search]);
 
   const visibleProducts = useMemo(
     () =>
@@ -289,12 +296,7 @@ export default function Home({ user }) {
             </button>
           </div>
 
-          <div className="product-list-controls" aria-label="Product list display mode">
-            <span>Display:</span>
-            <button type="button" className={listMode === "pages" ? "selected" : ""} aria-pressed={listMode === "pages"} onClick={() => setListMode("pages")}>Pages</button>
-            <button type="button" className={listMode === "infinite" ? "selected" : ""} aria-pressed={listMode === "infinite"} onClick={() => setListMode("infinite")}>Infinite scroll</button>
-            <span className="product-result-count">{productCount} product(s)</span>
-          </div>
+          <p className="product-result-count">{productCount} product(s)</p>
 
           <div className="product-grid">
             {visibleProducts.map((product, index) => (
@@ -372,28 +374,12 @@ export default function Home({ user }) {
             ))}
           </div>
 
-          {listMode === "pages" && productCount > 12 && (
-            <div className="product-pagination">
-              <Pagination
-                count={Math.ceil(productCount / 12)}
-                page={currentPage}
-                onChange={(_event, value) => {
-                  setCurrentPage(value);
-                  document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
-                }}
-                color="primary"
-                variant="outlined"
-                shape="rounded"
-                showFirstButton
-                showLastButton
-                aria-label="Product pages"
-              />
-            </div>
-          )}
-          {listMode === "infinite" && hasMore && (
+          {hasMore && (
             <div className="infinite-scroll-status" ref={loadMoreRef}>
               {productsLoading ? "Loading more products..." : "Scroll to load more products"}
-              <button type="button" onClick={() => setCurrentPage((page) => page + 1)} disabled={productsLoading}>Load more</button>
+              <button type="button" onClick={() => setCurrentPage((page) => page + 1)} disabled={productsLoading}>
+                {productsLoading ? "Loading..." : "Load more"}
+              </button>
             </div>
           )}
           {productsLoading && currentPage === 1 && <p className="no-products">Loading products...</p>}
@@ -415,15 +401,6 @@ export default function Home({ user }) {
           </a>
         </section>
 
-        <section id="about" className="about">
-          <h2>
-            Made for every <em>K-pop fan</em>
-          </h2>
-          <p>
-            Find your favorite albums, photocards, lightsticks, and more in one
-            place.
-          </p>
-        </section>
       </main>
 
       <Footer />

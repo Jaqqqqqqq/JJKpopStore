@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import SalesChart from "../Components/Admin/SalesChart";
-import "../App.css";
+import SalesChart from "./SalesChart";
+import "../../App.css";
 
 export default function ChartsPage() {
   return (

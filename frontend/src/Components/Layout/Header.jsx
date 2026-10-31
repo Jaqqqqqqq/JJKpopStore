@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { logout } from "../../actions/userActions";
 
@@ -7,6 +7,16 @@ export default function Header({ cartCount = 0, user }) {
   const [search, setSearch] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  function goToProducts(event) {
+    event.preventDefault();
+    if (location.pathname === "/") {
+      document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    navigate("/#products");
+  }
 
   function handleLogout() {
     dispatch(logout());
@@ -30,12 +40,11 @@ export default function Header({ cartCount = 0, user }) {
   <NavLink to="/" end>
     Home
   </NavLink>
-  <Link to="/#products">Products</Link>
+  <Link to="/#products" onClick={goToProducts}>Products</Link>
   {user && user.role !== "admin" && (
     <NavLink to="/orders">Orders</NavLink>
   )}
   {user && <NavLink to="/profile">Profile</NavLink>}
-  <Link to="/#about">About</Link>
 </nav>
 
       <label className="search">

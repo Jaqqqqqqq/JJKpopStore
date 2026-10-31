@@ -4,20 +4,20 @@ import { AUTH_SUCCESS } from "./actions/userActions";
 import ProtectedRoute from "./Components/Route/ProtectedRoute";
 import Home from "./Components/Home";
 import AuthPage from "./Components/User/AuthPage";
-import AdminDashboard from "./pages/AdminDashboard";
-import NewProduct from "./pages/NewProduct";
-import EditProduct from "./pages/EditProduct";
-import UsersList from "./pages/UsersList";
-import CustomerOrders from "./pages/CustomerOrders";
+import AdminDashboard from "./Components/Admin/AdminDashboard";
+import NewProduct from "./Components/Admin/NewProduct";
+import EditProduct from "./Components/Admin/EditProduct";
+import UsersList from "./Components/Admin/UsersList";
+import CustomerOrders from "./Components/User/CustomerOrders";
 import "./App.css";
 import Cart from "./Components/Cart/Cart";
 import Checkout from "./Components/Cart/Checkout";
-import OrdersList from "./pages/OrdersList";
+import OrdersList from "./Components/Admin/OrdersList";
 import OrderSuccess from "./Components/Cart/OrderSuccess";
 import ProductDetails from "./Components/ProductDetails";
-import ReviewsList from "./pages/ReviewsList";
-import CustomerProfile from "./pages/CustomerProfile";
-import ChartsPage from "./pages/ChartsPage";
+import ReviewsList from "./Components/Admin/ReviewsList";
+import CustomerProfile from "./Components/User/CustomerProfile";
+import ChartsPage from "./Components/Admin/ChartsPage";
 
 
 function StoreApp() {
