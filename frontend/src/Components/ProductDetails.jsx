@@ -1,10 +1,10 @@
 
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Header from "./Layout/Header";
 import Footer from "./Layout/Footer";
-import { sampleProducts } from "./catalogData";
+import { API, sampleProducts } from "./catalogData";
 import { addToCart } from "../actions/cartActions";
 import {
   clearProductDetails,
@@ -14,6 +14,7 @@ import {
 
 export default function ProductDetails() {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -64,6 +65,14 @@ export default function ProductDetails() {
     setSelectedImage(images[0] || "");
   }, [product]);
 
+  useEffect(() => {
+    if (!loading && product && location.hash === "#reviews-heading") {
+      window.requestAnimationFrame(() => {
+        document.getElementById("reviews-heading")?.scrollIntoView({ behavior: "smooth" });
+      });
+    }
+  }, [loading, product, location.hash]);
+
   const stock = Number(product?.stock ?? 0);
   const unavailable =
     !product || product.isAvailable === false || stock < 1;
@@ -103,6 +112,10 @@ export default function ProductDetails() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Unable to save your review.");
       dispatch(updateProductDetails(data.product));
+      const savedReview = data.product.reviews?.find(
+        (review) => String(review.user?._id || review.user) === String(user?.id || user?._id)
+      );
+      if (savedReview) setReviewComment(savedReview.comment);
       setMessage(data.message);
     } catch (err) {
       setMessage(err.message || "Unable to save your review.");

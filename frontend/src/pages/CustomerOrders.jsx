@@ -172,6 +172,16 @@ export default function CustomerOrders() {
                           <strong>{item.name}</strong>
                         )}
                         <p>Quantity: {item.quantity}</p>
+                        {order.orderStatus === "Completed" &&
+                          item.product &&
+                          /^[a-f\d]{24}$/i.test(String(item.product)) && (
+                            <Link
+                              to={`/product/${item.product}#reviews-heading`}
+                              className="customer-order-review"
+                            >
+                              Rate / Update Review
+                            </Link>
+                          )}
                       </div>
 
                       <strong>
@@ -187,14 +197,6 @@ export default function CustomerOrders() {
                   </span>
 
                   <div className="customer-order-actions">
-                    {order.orderStatus === "Completed" && order.orderItems?.[0]?.product && (
-                      <Link
-                        to={`/product/${order.orderItems[0].product}`}
-                        className="customer-order-review"
-                      >
-                        Rate & Review
-                      </Link>
-                    )}
                     <Link
                       to={`/order/success/${order._id}`}
                       className="customer-order-details"

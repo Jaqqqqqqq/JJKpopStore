@@ -2,6 +2,7 @@
 const mongoose = require("mongoose");
 const Product = require("../models/product");
 const Order = require("../models/order");
+const { cleanReviewText } = require("../utils/reviewWordFilter");
 const {
   uploadProductImage,
 } = require("../utils/uploadProductImages");
@@ -92,7 +93,8 @@ exports.createProductReview = async (req, res) => {
   try {
     const { rating, comment } = req.body;
     const numericRating = Number(rating);
-    const reviewComment = typeof comment === "string" ? comment.trim() : "";
+    const submittedComment = typeof comment === "string" ? comment.trim() : "";
+    const reviewComment = submittedComment ? cleanReviewText(submittedComment) : "";
 
     if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
       return res.status(400).json({
