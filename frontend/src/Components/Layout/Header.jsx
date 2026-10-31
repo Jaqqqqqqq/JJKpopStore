@@ -26,13 +26,17 @@ export default function Header({ cartCount = 0, user }) {
         <b>♡</b>
       </Link>
 
-      <nav>
-        <NavLink to="/" end>
-          Home
-        </NavLink>
-        <a href="/#products">Products</a>
-        <a href="/#about">About</a>
-      </nav>
+     <nav>
+  <NavLink to="/" end>
+    Home
+  </NavLink>
+  <Link to="/#products">Products</Link>
+  {user && user.role !== "admin" && (
+    <NavLink to="/orders">Orders</NavLink>
+  )}
+  {user && <NavLink to="/profile">Profile</NavLink>}
+  <Link to="/#about">About</Link>
+</nav>
 
       <label className="search">
         <span>⌕</span>
@@ -54,9 +58,8 @@ export default function Header({ cartCount = 0, user }) {
         </button>
       ) : (
         <div className="account-links">
-          <Link to="/login">Login</Link>
-          <span>/</span>
-          <Link to="/register">Register</Link>
+          <Link to="/login">Log in</Link>
+          <Link to="/register">Sign up</Link>
         </div>
       )}
     </header>

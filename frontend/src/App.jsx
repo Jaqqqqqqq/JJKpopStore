@@ -8,12 +8,17 @@ import AdminDashboard from "./pages/AdminDashboard";
 import NewProduct from "./pages/NewProduct";
 import EditProduct from "./pages/EditProduct";
 import UsersList from "./pages/UsersList";
+import CustomerOrders from "./pages/CustomerOrders";
 import "./App.css";
 import Cart from "./Components/Cart/Cart";
 import Checkout from "./Components/Cart/Checkout";
 import OrdersList from "./pages/OrdersList";
 import OrderSuccess from "./Components/Cart/OrderSuccess";
 import ProductDetails from "./Components/ProductDetails";
+import ReviewsList from "./pages/ReviewsList";
+import CustomerProfile from "./pages/CustomerProfile";
+import ChartsPage from "./pages/ChartsPage";
+
 
 function StoreApp() {
   const auth = useSelector((state) => state.user);
@@ -28,9 +33,7 @@ function StoreApp() {
       <Route
         path="/"
         element={
-          !user ? (
-            <Navigate to="/register" replace />
-          ) : user.role === "admin" ? (
+          user?.role === "admin" ? (
             <Navigate to="/dashboard" replace />
           ) : (
             <Home user={user} />
@@ -47,7 +50,9 @@ function StoreApp() {
       />
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/charts" element={<ChartsPage />} />
         <Route path="/admin/orders" element={<OrdersList />} />
+        <Route path="/admin/reviews" element={<ReviewsList />} />
         <Route path="/admin/product/new" element={<NewProduct />} />
         <Route path="/admin/users" element={<UsersList />} />
         <Route
@@ -58,14 +63,10 @@ function StoreApp() {
       <Route
         path="/cart"
         element={
-          user ? (
-            user.role === "admin" ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Cart />
-            )
+          user?.role === "admin" ? (
+            <Navigate to="/dashboard" replace />
           ) : (
-            <Navigate to="/login" replace />
+            <Cart />
           )
         }
       />
@@ -75,11 +76,22 @@ function StoreApp() {
           user && user.role !== "admin" ? (
             <Checkout />
           ) : (
-            <Navigate to="/login" replace />
+            <Navigate to="/login" replace state={{ from: { pathname: "/checkout" } }} />
           )
         }
       />
+      <Route
+  path="/orders"
+  element={
+    user && user.role !== "admin" ? (
+      <CustomerOrders />
+    ) : (
+      <Navigate to="/login" replace state={{ from: { pathname: "/orders" } }} />
+    )
+  }
+/>
       <Route element={<ProtectedRoute />}>
+        <Route path="/profile" element={<CustomerProfile />} />
         <Route
           path="/order/success/:id"
           element={
@@ -91,16 +103,7 @@ function StoreApp() {
           }
         />
       </Route>
-      <Route
-        path="/product/:id"
-        element={
-          user && user.role !== "admin" ? (
-            <ProductDetails />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
+      <Route path="/product/:id" element={<ProductDetails />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
 

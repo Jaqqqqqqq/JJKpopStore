@@ -21,6 +21,9 @@ export default function ProductDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSaving, setReviewSaving] = useState(false);
 
   const cartCount = cartItems.reduce(
     (total, item) => total + (Number(item.quantity) || 0),
@@ -96,6 +99,49 @@ export default function ProductDetails() {
   const stock = Number(product?.stock ?? 0);
   const unavailable =
     !product || product.isAvailable === false || stock < 1;
+  const ownReview = product?.reviews?.find(
+    (review) => String(review.user?._id || review.user) === String(user?.id || user?._id)
+  );
+
+  useEffect(() => {
+    if (ownReview) {
+      setReviewRating(ownReview.rating);
+      setReviewComment(ownReview.comment);
+    } else {
+      setReviewRating(0);
+      setReviewComment("");
+    }
+  }, [product, user]);
+
+  async function saveReview(event) {
+    event.preventDefault();
+    setMessage("");
+
+    if (!reviewRating || !reviewComment.trim()) {
+      setMessage("Choose a rating and write a review before submitting.");
+      return;
+    }
+
+    setReviewSaving(true);
+    try {
+      const response = await fetch(`${API}/product/${id}/reviews`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ rating: reviewRating, comment: reviewComment }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Unable to save your review.");
+      setProduct(data.product);
+      setMessage(data.message);
+    } catch (err) {
+      setMessage(err.message || "Unable to save your review.");
+    } finally {
+      setReviewSaving(false);
+    }
+  }
 
   function handleAddToCart() {
     setMessage("");
@@ -138,6 +184,7 @@ export default function ProductDetails() {
             </button>
           </section>
         ) : product ? (
+          <>
           <section className="product-details">
             <div className="product-details-images">
               <img
@@ -172,6 +219,12 @@ export default function ProductDetails() {
               <h1>{product.name}</h1>
               <p className="product-details-artist">
                 Artist / Group: {product.artist}
+              </p>
+
+              <p className="product-review-summary">
+                {product.numOfReviews
+                  ? `${Number(product.ratings).toFixed(1)} / 5 from ${product.numOfReviews} review(s)`
+                  : "No reviews yet"}
               </p>
 
               <p className="product-details-price">
@@ -258,6 +311,59 @@ export default function ProductDetails() {
               )}
             </div>
           </section>
+          <section className="product-reviews" aria-labelledby="reviews-heading">
+            <h2 id="reviews-heading">Customer Reviews</h2>
+            {product.reviews?.length ? (
+              <div className="product-review-list">
+                {product.reviews.map((review) => (
+                  <article className="product-review-card" key={review._id}>
+                    <div className="product-review-card-heading">
+                      <strong>{review.name}</strong>
+                      <span aria-label={`${review.rating} out of 5 stars`}>
+                        {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
+                      </span>
+                    </div>
+                    <p>{review.comment}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p>No one has reviewed this product yet.</p>
+            )}
+
+            {user && user.role !== "admin" && (
+              <form className="product-review-form" onSubmit={saveReview}>
+                <h3>{ownReview ? "Update your review" : "Write a review"}</h3>
+                <label htmlFor="review-rating">Rating</label>
+                <select
+                  id="review-rating"
+                  value={reviewRating}
+                  onChange={(event) => setReviewRating(Number(event.target.value))}
+                  required
+                >
+                  <option value={0} disabled>Select a rating</option>
+                  {[5, 4, 3, 2, 1].map((rating) => (
+                    <option value={rating} key={rating}>{rating} / 5</option>
+                  ))}
+                </select>
+                <label htmlFor="review-comment">Review</label>
+                <textarea
+                  id="review-comment"
+                  value={reviewComment}
+                  onChange={(event) => setReviewComment(event.target.value)}
+                  maxLength={1000}
+                  rows={4}
+                  required
+                />
+                <button type="submit" disabled={reviewSaving}>
+                  {reviewSaving ? "Saving..." : ownReview ? "Update Review" : "Submit Review"}
+                </button>
+              </form>
+            )}
+            {!user && <p>Log in with the account used for a completed order to submit a review.</p>}
+            {message && <p className="product-review-message" role="status">{message}</p>}
+          </section>
+          </>
         ) : null}
       </main>
 

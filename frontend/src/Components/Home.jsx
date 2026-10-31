@@ -1,7 +1,8 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import Pagination from "@mui/material/Pagination";
 import Header from "./Layout/Header";
 import Footer from "./Layout/Footer";
 import { API, categories, sampleProducts } from "./catalogData";
@@ -9,14 +10,23 @@ import { addToCart } from "../actions/cartActions";
 
 export default function Home({ user }) {
   const [products, setProducts] = useState(sampleProducts);
+  const [productCount, setProductCount] = useState(sampleProducts.length);
+  const [hasMore, setHasMore] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [listMode, setListMode] = useState("pages");
+  const [currentPage, setCurrentPage] = useState(1);
   const [category, setCategory] = useState("All");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+  const [minimumRating, setMinimumRating] = useState("0");
+  const [reviewFilter, setReviewFilter] = useState("all");
   const [cartMessage, setCartMessage] = useState("");
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const loadMoreRef = useRef(null);
+  const searchQuery = (searchParams.get("search") || "").trim().toLowerCase();
 
   const cartItems = useSelector((state) => state.cart?.items || []);
   const cartCount = cartItems.reduce(
@@ -28,17 +38,41 @@ export default function Home({ user }) {
     let cancelled = false;
 
     async function fetchProducts() {
+      setProductsLoading(true);
       try {
-        const response = await fetch(`${API}/products`);
-        if (!response.ok) return;
+        const params = new URLSearchParams({
+          page: String(currentPage),
+          limit: "12",
+          keyword: searchQuery,
+          category,
+          rating: minimumRating,
+          reviews: reviewFilter,
+        });
+        if (minPrice !== "") params.set("minPrice", minPrice);
+        if (maxPrice !== "") params.set("maxPrice", maxPrice);
+        const response = await fetch(`${API}/products?${params}`);
+        if (!response.ok) throw new Error("Failed to load products.");
 
         const data = await response.json();
 
-        if (!cancelled && data?.products?.length) {
-          setProducts(data.products);
+        if (!cancelled) {
+          const newProducts = data.products || [];
+          setProducts((existing) =>
+            listMode === "infinite" && currentPage > 1
+              ? [...existing, ...newProducts]
+              : newProducts
+          );
+          setProductCount(Number(data.filteredProductsCount ?? data.count ?? newProducts.length));
+          setHasMore(Boolean(data.hasMore));
         }
       } catch {
-        // Keep sample products available if the API is unreachable.
+        if (!cancelled && currentPage === 1) {
+          setProducts(sampleProducts);
+          setProductCount(sampleProducts.length);
+          setHasMore(false);
+        }
+      } finally {
+        if (!cancelled) setProductsLoading(false);
       }
     }
 
@@ -47,9 +81,21 @@ export default function Home({ user }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [currentPage, listMode, category, minPrice, maxPrice, minimumRating, reviewFilter, searchQuery]);
 
-  const searchQuery = (searchParams.get("search") || "").trim().toLowerCase();
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [category, minPrice, maxPrice, minimumRating, reviewFilter, searchQuery, listMode]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (listMode !== "infinite" || !hasMore || productsLoading || !sentinel) return undefined;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setCurrentPage((page) => page + 1);
+    }, { rootMargin: "250px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [listMode, hasMore, productsLoading, products.length]);
 
   const visibleProducts = useMemo(
     () =>
@@ -61,6 +107,15 @@ export default function Home({ user }) {
           minPrice === "" || price >= Number(minPrice);
         const matchesMaxPrice =
           maxPrice === "" || price <= Number(maxPrice);
+        const ratings = Number(product.ratings || 0);
+        const reviewCount = Number(
+          product.numOfReviews ?? product.reviews?.length ?? 0
+        );
+        const matchesRating = ratings >= Number(minimumRating);
+        const matchesReviews =
+          reviewFilter === "all" ||
+          (reviewFilter === "has-reviews" && reviewCount > 0) ||
+          (reviewFilter === "no-reviews" && reviewCount === 0);
         const matchesSearch =
           !searchQuery ||
           [product.name, product.artist, product.category]
@@ -70,10 +125,12 @@ export default function Home({ user }) {
           matchesCategory &&
           matchesMinPrice &&
           matchesMaxPrice &&
+          matchesRating &&
+          matchesReviews &&
           matchesSearch
         );
       }),
-    [products, category, minPrice, maxPrice, searchQuery]
+    [products, category, minPrice, maxPrice, minimumRating, reviewFilter, searchQuery]
   );
 
   function openProduct(product) {
@@ -193,35 +250,79 @@ export default function Home({ user }) {
           </div>
 
           <div className="price-filters">
-            <label htmlFor="minPrice">Min Price:</label>
-            <input
-              type="number"
-              id="minPrice"
-              min="0"
-              value={minPrice}
-              onChange={(event) => setMinPrice(event.target.value)}
-              placeholder="Enter minimum price"
-            />
+            <fieldset className="filter-group price-filter-group">
+              <legend>Price range</legend>
+              <label htmlFor="minPrice">Min price</label>
+              <input
+                type="number"
+                id="minPrice"
+                min="0"
+                value={minPrice}
+                onChange={(event) => setMinPrice(event.target.value)}
+                placeholder="No minimum"
+              />
+              <label htmlFor="maxPrice">Max price</label>
+              <input
+                type="number"
+                id="maxPrice"
+                min="0"
+                value={maxPrice}
+                onChange={(event) => setMaxPrice(event.target.value)}
+                placeholder="No maximum"
+              />
+            </fieldset>
 
-            <label htmlFor="maxPrice">Max Price:</label>
-            <input
-              type="number"
-              id="maxPrice"
-              min="0"
-              value={maxPrice}
-              onChange={(event) => setMaxPrice(event.target.value)}
-              placeholder="Enter maximum price"
-            />
+            <fieldset className="filter-group">
+              <legend>Minimum rating</legend>
+              <label htmlFor="minimumRating">Show products rated at least</label>
+              <select
+                id="minimumRating"
+                value={minimumRating}
+                onChange={(event) => setMinimumRating(event.target.value)}
+              >
+                <option value="0">Any rating</option>
+                <option value="1">1 star</option>
+                <option value="2">2 stars</option>
+                <option value="3">3 stars</option>
+                <option value="4">4 stars</option>
+                <option value="5">5 stars</option>
+              </select>
+            </fieldset>
+
+            <fieldset className="filter-group">
+              <legend>Reviews</legend>
+              <label htmlFor="reviewFilter">Customer reviews</label>
+              <select
+                id="reviewFilter"
+                value={reviewFilter}
+                onChange={(event) => setReviewFilter(event.target.value)}
+              >
+                <option value="all">All products</option>
+                <option value="has-reviews">Has reviews</option>
+                <option value="no-reviews">No reviews yet</option>
+              </select>
+            </fieldset>
 
             <button
+              className="clear-filters-button"
               type="button"
               onClick={() => {
+                setCategory("All");
                 setMinPrice("");
                 setMaxPrice("");
+                setMinimumRating("0");
+                setReviewFilter("all");
               }}
             >
-              Clear Price
+              Clear filters
             </button>
+          </div>
+
+          <div className="product-list-controls" aria-label="Product list display mode">
+            <span>Display:</span>
+            <button type="button" className={listMode === "pages" ? "selected" : ""} aria-pressed={listMode === "pages"} onClick={() => setListMode("pages")}>Pages</button>
+            <button type="button" className={listMode === "infinite" ? "selected" : ""} aria-pressed={listMode === "infinite"} onClick={() => setListMode("infinite")}>Infinite scroll</button>
+            <span className="product-result-count">{productCount} product(s)</span>
           </div>
 
           <div className="product-grid">
@@ -290,10 +391,41 @@ export default function Home({ user }) {
                       ＋
                     </button>
                   </div>
+                  <p className="product-card-rating">
+                    {Number(product.ratings || 0) > 0
+                      ? `★ ${Number(product.ratings).toFixed(1)} · ${Number(product.numOfReviews ?? product.reviews?.length ?? 0)} review(s)`
+                      : "No reviews yet"}
+                  </p>
                 </div>
               </article>
             ))}
           </div>
+
+          {listMode === "pages" && productCount > 12 && (
+            <div className="product-pagination">
+              <Pagination
+                count={Math.ceil(productCount / 12)}
+                page={currentPage}
+                onChange={(_event, value) => {
+                  setCurrentPage(value);
+                  document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                color="primary"
+                variant="outlined"
+                shape="rounded"
+                showFirstButton
+                showLastButton
+                aria-label="Product pages"
+              />
+            </div>
+          )}
+          {listMode === "infinite" && hasMore && (
+            <div className="infinite-scroll-status" ref={loadMoreRef}>
+              {productsLoading ? "Loading more products..." : "Scroll to load more products"}
+              <button type="button" onClick={() => setCurrentPage((page) => page + 1)} disabled={productsLoading}>Load more</button>
+            </div>
+          )}
+          {productsLoading && currentPage === 1 && <p className="no-products">Loading products...</p>}
 
           {cartMessage && (
             <p role="status" className="product-cart-message">

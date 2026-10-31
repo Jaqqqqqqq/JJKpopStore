@@ -42,7 +42,7 @@ const orderSchema = mongoose.Schema({
       },
       image: {
         type: String,
-        required: true
+        default: ""
       },
       price: {
         type: Number,
@@ -56,9 +56,22 @@ const orderSchema = mongoose.Schema({
     }
   ],
 
+   // Payment method selected by the customer during checkout.
+  paymentMethod: {
+    type: String,
+    enum: ["Card", "E-payment", "COD"],
+    required: true,
+  },
+
+  paymentAmount: {
+    type: Number,
+    min: 0,
+  },
+
+  // Reserved for payment gateway transaction details.
   paymentInfo: {
     id: String,
-    status: String
+    status: String,
   },
 
   paidAt: Date,
@@ -98,6 +111,8 @@ const orderSchema = mongoose.Schema({
   },
 
   deliveredAt: Date,
+
+  statusEmailSentAt: Date,
 
   createdAt: {
     type: Date,

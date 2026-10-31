@@ -1,74 +1,64 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useFormik } from "formik";
 import axios from "axios";
 import "../App.css";
 import CustomModal from "../Components/Common/CustomModal";
+import { newProductValidationSchema } from "../schemas/formSchemas";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000/api/v1";
 const categories = ["Albums", "Photocards", "Lightsticks", "Posters", "Accessories", "Other"];
-const MAX_IMAGES = 5, MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const NewProduct = () => {
-  const [name, setName] = useState(""), [artist, setArtist] = useState(""), [price, setPrice] = useState("");
-  const [description, setDescription] = useState(""), [category, setCategory] = useState("Albums"), [stock, setStock] = useState("");
-  const [files, setFiles] = useState([]), [error, setError] = useState(""), [loading, setLoading] = useState(false);
-  const [previews, setPreviews] = useState([]), [popupOpen, setPopupOpen] = useState(false);
+  const [error, setError] = useState("");
+  const [previews, setPreviews] = useState([]);
+  const [popupOpen, setPopupOpen] = useState(false);
   const navigate = useNavigate();
+  const formik = useFormik({
+    initialValues: { name: "", artist: "", price: "", description: "", category: "Albums", stock: "", images: [] },
+    validationSchema: newProductValidationSchema,
+    onSubmit: async (values) => {
+      setError("");
+      const formData = new FormData();
+      formData.append("name", values.name.trim());
+      formData.append("artist", values.artist.trim());
+      formData.append("price", values.price);
+      formData.append("description", values.description.trim());
+      formData.append("category", values.category);
+      formData.append("stock", values.stock);
+      values.images.forEach((file) => formData.append("images", file));
+
+      try {
+        const { data } = await axios.post(`${API}/admin/product/new`, formData, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        if (data.success) setPopupOpen(true);
+        else setError(data.message || "Failed to create product.");
+      } catch (requestError) {
+        setError(requestError.response?.data?.message || requestError.message || "Failed to create product.");
+      }
+    },
+  });
+  const files = formik.values.images;
+  const loading = formik.isSubmitting;
 
   useEffect(() => {
-    const urls = files.map(file => URL.createObjectURL(file));
+    const urls = files.map((file) => URL.createObjectURL(file));
     setPreviews(urls);
     return () => urls.forEach(url => URL.revokeObjectURL(url));
   }, [files]);
 
-  const handleFileChange = e => {
+  const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (!selectedFiles.length) return;
-    if (selectedFiles.length > MAX_IMAGES) {
-      setError(`Please select no more than ${MAX_IMAGES} images.`);
-      e.target.value = "";
-      return;
-    }
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
-    const invalidFile = selectedFiles.find(file => !validTypes.includes(file.type) || file.size > MAX_FILE_SIZE);
-    if (invalidFile) {
-      setError("Use JPG, PNG, or WEBP images. Each image must be 5 MB or smaller.");
-      e.target.value = "";
-      return;
-    }
     setError("");
-    setFiles(selectedFiles);
+    formik.setFieldValue("images", selectedFiles);
+    formik.setFieldTouched("images", true, false);
   };
 
-  const submitHandler = async e => {
-    e.preventDefault();
-    setError("");
-    if (!files.length) {
-      setError("Please select at least one product image.");
-      return;
-    }
-    const formData = new FormData();
-    formData.append("name", name.trim());
-    formData.append("artist", artist.trim());
-    formData.append("price", price);
-    formData.append("description", description.trim());
-    formData.append("category", category);
-    formData.append("stock", stock);
-    files.forEach(file => formData.append("images", file));
-
-    try {
-      setLoading(true);
-      const { data } = await axios.post(`${API}/admin/product/new`, formData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-      });
-      if (data.success) setPopupOpen(true);
-      else setError(data.message || "Failed to create product.");
-    } catch (error) {
-      setError(error.response?.data?.message || error.message || "Failed to create product.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fieldError = (name) => formik.touched[name] && formik.errors[name]
+    ? <span className="field-error" role="alert">{formik.errors[name]}</span>
+    : null;
 
   return (
     <>
@@ -77,7 +67,11 @@ const NewProduct = () => {
           <h2>J&J K-POP</h2><p>Admin Panel</p>
           <nav>
             <Link to="/dashboard">Dashboard</Link>
+            <Link to="/admin/charts">Charts</Link>
             <Link to="/dashboard#admin-products">Products</Link>
+            <Link to="/admin/orders">Orders</Link>
+            <Link to="/admin/reviews">Reviews</Link>
+            <Link to="/admin/users">Users</Link>
           </nav>
           <Link to="/" className="admin-logout">Back to Store</Link>
         </aside>
@@ -85,35 +79,41 @@ const NewProduct = () => {
         <main className="admin-main">
           <div className="admin-products">
             <h1>New Product</h1><p>Add merchandise to your K-pop store.</p>
-            <form className="admin-product-form" onSubmit={submitHandler}>
+            <form className="admin-product-form" onSubmit={formik.handleSubmit} noValidate>
               <h3>Product Information</h3>
               {error && <p className="admin-error" role="alert">{error}</p>}
 
               <label>Product Name
-                <input type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. SEVENTEEN Album" />
+                <input {...formik.getFieldProps("name")} placeholder="e.g. SEVENTEEN Album" aria-invalid={Boolean(formik.touched.name && formik.errors.name)} />
+                {fieldError("name")}
               </label>
 
               <label>Artist / Group
-                <input type="text" value={artist} onChange={e => setArtist(e.target.value)} required placeholder="e.g. SEVENTEEN" />
+                <input {...formik.getFieldProps("artist")} placeholder="e.g. SEVENTEEN" aria-invalid={Boolean(formik.touched.artist && formik.errors.artist)} />
+                {fieldError("artist")}
               </label>
 
               <label>Price (₱)
-                <input type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} required />
+                <input {...formik.getFieldProps("price")} type="number" min="0.01" step="0.01" aria-invalid={Boolean(formik.touched.price && formik.errors.price)} />
+                {fieldError("price")}
               </label>
 
               <label>Category
-                <select value={category} onChange={e => setCategory(e.target.value)} required>
+                <select {...formik.getFieldProps("category")} aria-invalid={Boolean(formik.touched.category && formik.errors.category)}>
                   {categories.map(item => <option key={item} value={item}>{item}</option>)}
                 </select>
+                {fieldError("category")}
               </label>
 
               <label>Stock
-                <input type="number" min="0" step="1" value={stock} onChange={e => setStock(e.target.value)} required />
+                <input {...formik.getFieldProps("stock")} type="number" min="0" step="1" aria-invalid={Boolean(formik.touched.stock && formik.errors.stock)} />
+                {fieldError("stock")}
               </label>
 
               <div className="admin-full-width">
                 <label htmlFor="product-images">Product Images (up to 5)</label>
-                <input id="product-images" type="file" accept=".jpg,.jpeg,.jpe,.png,.webp,image/jpeg,image/png,image/webp" multiple onChange={handleFileChange} disabled={loading} />
+                <input id="product-images" type="file" accept=".jpg,.jpeg,.jpe,.png,.webp,image/jpeg,image/png,image/webp" multiple onChange={handleFileChange} onBlur={() => formik.setFieldTouched("images", true)} disabled={loading} />
+                {fieldError("images")}
                 <p>Select up to 5 JPG, PNG, or WEBP images. Maximum 5 MB per image.</p>
 
                 {previews.length > 0 && (
@@ -129,7 +129,7 @@ const NewProduct = () => {
 
                 {files.length > 0 && (
                   <button type="button" className="admin-cancel-button" onClick={() => {
-                    setFiles([]); setError("");
+                    formik.setFieldValue("images", []); setError("");
                     const input = document.getElementById("product-images");
                     if (input) input.value = "";
                   }} disabled={loading}>Clear Selected Images</button>
@@ -137,7 +137,8 @@ const NewProduct = () => {
               </div>
 
               <label className="admin-full-width">Description
-                <textarea rows="5" value={description} onChange={e => setDescription(e.target.value)} required placeholder="Describe the merchandise" />
+                <textarea {...formik.getFieldProps("description")} rows="5" placeholder="Describe the merchandise" aria-invalid={Boolean(formik.touched.description && formik.errors.description)} />
+                {fieldError("description")}
               </label>
 
               <button type="submit" className="admin-add-button" disabled={loading}>

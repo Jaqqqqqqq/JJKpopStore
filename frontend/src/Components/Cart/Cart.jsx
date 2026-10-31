@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Header from "../Layout/Header";
 import Footer from "../Layout/Footer";
@@ -13,16 +14,53 @@ export default function Cart() {
   const navigate = useNavigate();
   const user = useSelector((state) => state.user.user);
   const items = useSelector((state) => state.cart.items);
+  const productIdsKey = items.map((item) => String(item.product)).join("|");
+  const [selectedIds, setSelectedIds] = useState(() =>
+    productIdsKey ? productIdsKey.split("|") : []
+  );
+
+  useEffect(() => {
+    setSelectedIds(productIdsKey ? productIdsKey.split("|") : []);
+  }, [productIdsKey]);
 
   const itemCount = items.reduce(
     (total, item) => total + item.quantity,
     0
   );
 
-  const subtotal = items.reduce(
+  const selectedItems = items.filter((item) =>
+    selectedIds.includes(String(item.product))
+  );
+  const selectedCount = selectedItems.reduce(
+    (total, item) => total + item.quantity,
+    0
+  );
+  const subtotal = selectedItems.reduce(
     (total, item) => total + item.price * item.quantity,
     0
   );
+
+  const allSelected = items.length > 0 && selectedItems.length === items.length;
+
+  function toggleItem(productId) {
+    const id = String(productId);
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((selectedId) => selectedId !== id)
+        : [...current, id]
+    );
+  }
+
+  function checkoutSelected() {
+    if (!selectedItems.length) return;
+    const productIds = selectedItems.map((item) => String(item.product));
+    sessionStorage.setItem("checkoutProductIds", JSON.stringify(productIds));
+    navigate("/checkout", { state: { productIds } });
+  }
+
+  function removeSelected() {
+    selectedItems.forEach((item) => dispatch(removeFromCart(item.product)));
+  }
 
   const formatPrice = (price) =>
     `₱${Number(price).toLocaleString("en-PH", {
@@ -49,8 +87,36 @@ export default function Cart() {
         ) : (
           <div className="cart-layout">
             <section className="cart-items">
+              <div className="cart-selection-toolbar">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={() =>
+                      setSelectedIds(allSelected ? [] : items.map((item) => String(item.product)))
+                    }
+                  />
+                  Select all ({items.length})
+                </label>
+                <button
+                  type="button"
+                  className="cart-remove-selected"
+                  disabled={selectedItems.length === 0}
+                  onClick={removeSelected}
+                >
+                  Remove selected ({selectedItems.length})
+                </button>
+              </div>
               {items.map((item) => (
                 <article className="cart-item" key={item.product}>
+                  <label className="cart-item-select">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(String(item.product))}
+                      onChange={() => toggleItem(item.product)}
+                      aria-label={`Select ${item.name} for checkout`}
+                    />
+                  </label>
                   <img
                     className="cart-item-image"
                     src={item.image || ""}
@@ -120,7 +186,7 @@ export default function Cart() {
               <h2>Order Summary</h2>
 
               <div className="cart-summary-row">
-                <span>Items ({itemCount})</span>
+                <span>Selected items ({selectedCount})</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
 
@@ -136,12 +202,10 @@ export default function Cart() {
               <button
                 type="button"
                 className="cart-button"
-                disabled={items.length === 0}
-                onClick={() =>
-                  navigate("/checkout")
-                }
+                disabled={selectedItems.length === 0}
+                onClick={checkoutSelected}
               >
-                Proceed to Checkout
+                Checkout Selected ({selectedItems.length})
               </button>
 
               <Link to="/" className="cart-continue">

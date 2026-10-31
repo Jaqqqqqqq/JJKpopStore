@@ -98,9 +98,7 @@ export default function OrdersList() {
         [orderId]: data.order.orderStatus,
       }));
 
-      setMessage(
-        `Order ${orderId.slice(-8)} status saved as ${data.order.orderStatus}.`
-      );
+      setMessage(data.message || `Order ${orderId.slice(-8)} status saved as ${data.order.orderStatus}.`);
     } catch (err) {
       setError(err.message);
       await loadOrders().catch(() => {});
@@ -123,8 +121,10 @@ export default function OrdersList() {
 
         <nav>
           <Link to="/dashboard">Dashboard</Link>
+          <Link to="/admin/charts">Charts</Link>
           <Link to="/dashboard#admin-products">Products</Link>
           <Link to="/admin/orders" className="active">Orders</Link>
+          <Link to="/admin/reviews">Reviews</Link>
           <Link to="/admin/users">Users</Link>
         </nav>
 
@@ -218,10 +218,15 @@ export default function OrdersList() {
                             onClick={() => updateStatus(order._id)}
                             disabled={
                               savingId === order._id ||
-                              statuses[order._id] === order.orderStatus
+                              (statuses[order._id] === order.orderStatus &&
+                                Boolean(order.statusEmailSentAt))
                             }
                           >
-                            {savingId === order._id ? "Saving..." : "Save"}
+                            {savingId === order._id
+                              ? "Saving..."
+                              : statuses[order._id] === order.orderStatus && !order.statusEmailSentAt
+                                ? "Retry Email"
+                                : "Save"}
                           </button>
                         </td>
                       </tr>

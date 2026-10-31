@@ -1,6 +1,7 @@
 
 const mongoose = require("mongoose");
 const Product = require("../models/product");
+const Order = require("../models/order");
 const {
   uploadProductImage,
 } = require("../utils/uploadProductImages");
@@ -8,12 +9,52 @@ const {
 // Get all K-pop merchandise
 exports.getProducts = async (req, res) => {
   try {
-    const products = await Product.find();
+    const {
+      page: pageValue,
+      limit: limitValue,
+      keyword,
+      category,
+      minPrice,
+      maxPrice,
+      rating,
+      reviews: reviewFilter,
+    } = req.query;
+    const page = Math.max(1, Number.parseInt(pageValue, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(limitValue, 10) || 12));
+    const filter = {};
+    if (keyword?.trim()) {
+      const safeKeyword = keyword.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.$or = [
+        { name: { $regex: safeKeyword, $options: "i" } },
+        { artist: { $regex: safeKeyword, $options: "i" } },
+        { category: { $regex: safeKeyword, $options: "i" } },
+      ];
+    }
+    if (category && category !== "All") filter.category = category;
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      filter.price = {};
+      if (minPrice !== undefined && Number.isFinite(Number(minPrice))) filter.price.$gte = Number(minPrice);
+      if (maxPrice !== undefined && Number.isFinite(Number(maxPrice))) filter.price.$lte = Number(maxPrice);
+    }
+    if (rating && Number.isFinite(Number(rating)) && Number(rating) > 0) filter.ratings = { $gte: Number(rating) };
+    if (reviewFilter === "has-reviews") filter.numOfReviews = { $gt: 0 };
+    if (reviewFilter === "no-reviews") filter.numOfReviews = 0;
+
+    const filteredProductsCount = await Product.countDocuments(filter);
+    const products = await Product.find(filter)
+      .sort({ createdAt: -1, _id: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     res.status(200).json({
       success: true,
-      count: products.length,
-      products
+      count: filteredProductsCount,
+      productsCount: await Product.countDocuments(),
+      filteredProductsCount,
+      resPerPage: limit,
+      currentPage: page,
+      hasMore: page * limit < filteredProductsCount,
+      products,
     });
   } catch (error) {
     res.status(500).json({
@@ -43,6 +84,114 @@ exports.getSingleProduct = async (req, res) => {
       success: false,
       message: "Invalid product ID"
     });
+  }
+};
+
+// Create or update a review for a product purchased by the logged-in user.
+exports.createProductReview = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    const numericRating = Number(rating);
+    const reviewComment = typeof comment === "string" ? comment.trim() : "";
+
+    if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select a rating from 1 to 5.",
+      });
+    }
+
+    if (!reviewComment || reviewComment.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a review of 1 to 1000 characters.",
+      });
+    }
+
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    const purchase = await Order.exists({
+      user: req.user._id,
+      orderStatus: "Completed",
+      "orderItems.product": product._id,
+    });
+
+    if (!purchase) {
+      return res.status(403).json({
+        success: false,
+        message: "You can review this product after a completed order containing it.",
+      });
+    }
+
+    const existingReview = product.reviews.find(
+      (review) => String(review.user) === String(req.user._id)
+    );
+
+    if (existingReview) {
+      existingReview.rating = numericRating;
+      existingReview.comment = reviewComment;
+    } else {
+      const User = require("../models/user");
+      const user = await User.findById(req.user._id).select("name");
+      product.reviews.push({
+        user: req.user._id,
+        name: user?.name || "Customer",
+        rating: numericRating,
+        comment: reviewComment,
+      });
+    }
+
+    product.numOfReviews = product.reviews.length;
+    product.ratings = product.numOfReviews
+      ? product.reviews.reduce((total, review) => total + review.rating, 0) / product.numOfReviews
+      : 0;
+
+    await product.save();
+
+    return res.status(existingReview ? 200 : 201).json({
+      success: true,
+      message: existingReview ? "Review updated successfully." : "Review submitted successfully.",
+      product,
+    });
+  } catch (error) {
+    console.error("Save product review error:", error);
+    return res.status(500).json({ success: false, message: "Unable to save review." });
+  }
+};
+
+// Delete a review. The route is restricted to admins.
+exports.deleteProductReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    if (!mongoose.isValidObjectId(reviewId)) {
+      return res.status(400).json({ success: false, message: "Invalid review ID" });
+    }
+
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    const review = product.reviews.id(reviewId);
+    if (!review) {
+      return res.status(404).json({ success: false, message: "Review not found" });
+    }
+
+    review.deleteOne();
+    product.numOfReviews = product.reviews.length;
+    product.ratings = product.numOfReviews
+      ? product.reviews.reduce((total, item) => total + item.rating, 0) / product.numOfReviews
+      : 0;
+    await product.save();
+
+    return res.status(200).json({ success: true, message: "Review deleted successfully.", product });
+  } catch (error) {
+    console.error("Delete product review error:", error);
+    return res.status(500).json({ success: false, message: "Unable to delete review." });
   }
 };
 

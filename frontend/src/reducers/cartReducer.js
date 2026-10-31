@@ -17,6 +17,15 @@ const getStoredUserId = () => {
 };
 
 const getCartKey = (userId) => `cartItems_${userId}`;
+const GUEST_CART_KEY = "cartItems_guest";
+
+const loadGuestItems = () => {
+  try {
+    return JSON.parse(localStorage.getItem(GUEST_CART_KEY)) || [];
+  } catch {
+    return [];
+  }
+};
 
 const loadItems = (userId) => {
   if (!userId) return [];
@@ -41,14 +50,35 @@ const loadItems = (userId) => {
 
 const initialUserId = getStoredUserId();
 const initialState = {
-  items: loadItems(initialUserId),
+  items: initialUserId ? loadItems(initialUserId) : loadGuestItems(),
   ownerId: initialUserId,
+};
+
+const mergeItems = (savedItems, guestItems) => {
+  const merged = [...savedItems];
+  guestItems.forEach((guestItem) => {
+    const existing = merged.find(
+      (item) => String(item.product) === String(guestItem.product)
+    );
+    if (existing) {
+      existing.quantity = Math.min(
+        Number(existing.stock ?? Infinity),
+        existing.quantity + guestItem.quantity
+      );
+    } else {
+      merged.push(guestItem);
+    }
+  });
+  return merged;
 };
 
 export default function cartReducer(state = initialState, action) {
   if (action.type === AUTH_SUCCESS) {
     const ownerId = getUserId(action.payload);
-    return { items: loadItems(ownerId), ownerId };
+    const items = mergeItems(loadItems(ownerId), loadGuestItems());
+    localStorage.setItem(getCartKey(ownerId), JSON.stringify(items));
+    localStorage.removeItem(GUEST_CART_KEY);
+    return { items, ownerId };
   }
 
   if (action.type === AUTH_LOGOUT) {
@@ -59,8 +89,6 @@ export default function cartReducer(state = initialState, action) {
 
   switch (action.type) {
     case ADD_TO_CART: {
-      if (!state.ownerId) return state;
-
       const { product, quantity } = action.payload;
       const productId = String(product._id || product.id);
       const existing = state.items.find(
@@ -75,13 +103,14 @@ export default function cartReducer(state = initialState, action) {
           )
         : [
             ...state.items,
-            {
-              product: productId,
-              name: product.name,
-              price: Number(product.price),
-              image: product.image || product.images?.[0]?.url || "",
-              quantity,
-            },
+           {
+  product: productId,
+  name: product.name,
+  price: Number(product.price),
+  image: product.image || product.images?.[0]?.url || "",
+  stock: Number(product.stock ?? 0),
+  quantity,
+}
           ];
       break;
     }
@@ -92,13 +121,30 @@ export default function cartReducer(state = initialState, action) {
       );
       break;
 
-    case UPDATE_CART_QUANTITY:
-      items = state.items.map((item) =>
-        String(item.product) === String(action.payload.productId)
-          ? { ...item, quantity: Math.max(1, action.payload.quantity) }
-          : item
-      );
-      break;
+   case UPDATE_CART_QUANTITY:
+  items = state.items.map((item) => {
+    if (
+      String(item.product) !==
+      String(action.payload.productId)
+    ) {
+      return item;
+    }
+
+    const requestedQuantity = Number(
+      action.payload.quantity
+    );
+
+    const maxStock = Number(item.stock ?? 0);
+
+    return {
+      ...item,
+      quantity: Math.max(
+        1,
+        Math.min(requestedQuantity, maxStock)
+      ),
+    };
+  });
+  break;
 
     case CLEAR_CART:
       items = [];
@@ -108,9 +154,10 @@ export default function cartReducer(state = initialState, action) {
       return state;
   }
 
-  if (state.ownerId) {
-    localStorage.setItem(getCartKey(state.ownerId), JSON.stringify(items));
-  }
+  localStorage.setItem(
+    state.ownerId ? getCartKey(state.ownerId) : GUEST_CART_KEY,
+    JSON.stringify(items)
+  );
 
   return { ...state, items };
 }

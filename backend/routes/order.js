@@ -9,6 +9,7 @@ const {
   getAdminOrders,
   updateOrder,
   deleteOrder,
+  salesChart,
 } = require("../controllers/order");
 
 const protect = require("../middleware/auth");
@@ -23,6 +24,7 @@ router.get("/myorders", protect, myOrders);
 
 // Admin order management.
 router.get("/admin/orders", protect, adminOnly, getAdminOrders);
+router.get("/admin/sales-chart", protect, adminOnly, salesChart);
 router.put("/admin/order/:id", protect, adminOnly, updateOrder);
 router.delete("/admin/order/:id", protect, adminOnly, deleteOrder);
 

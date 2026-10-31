@@ -12,6 +12,11 @@ export const authenticate = (kind, credentials) => async (dispatch) => {
   try {
     const path = kind === "register" ? "/register" : "/login";
     const { data } = await axios.post(`${API}${path}`, credentials);
+
+    if (kind === "register") {
+      return data.user;
+    }
+
     const user = {
       ...data.user,
       role: String(data.user?.role || "user").toLowerCase(),

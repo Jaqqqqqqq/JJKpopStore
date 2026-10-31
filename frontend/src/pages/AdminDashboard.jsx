@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import DataTable from "datatables.net-react";
+import DT from "datatables.net-dt";
 import "../App.css";
 import CustomModal from "../Components/Common/CustomModal";
+
+import "datatables.net-dt/css";
+
+DataTable.use(DT);
 
 const API = import.meta.env.VITE_API || "http://localhost:5000/api/v1";
 
@@ -203,8 +209,10 @@ function AdminDashboard() {
         <p>Admin Panel</p>
         <nav>
           <Link to="/dashboard">Dashboard</Link>
+          <Link to="/admin/charts">Charts</Link>
           <Link to="/dashboard#admin-products">Products</Link>
           <Link to="/admin/orders">Orders</Link>
+          <Link to="/admin/reviews">Reviews</Link>
           <Link to="/admin/users">Users</Link>
         </nav>
         <Link to="/" className="admin-logout">Back to Store</Link>
@@ -258,115 +266,131 @@ function AdminDashboard() {
           {error && <p className="admin-error">{error}</p>}
 
           {!loading && !error && (
-            <div className="admin-table-wrapper">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>
-                      <input
-                        type="checkbox"
-                        aria-label="Select all products"
-                        checked={
-                          products.length > 0 &&
-                          products.every((product) =>
-                            selectedIds.includes(product._id)
-                          )
-                        }
-                        onChange={toggleSelectAll}
-                      />
-                    </th>
-                    <th>Product</th>
-                    <th>Artist</th>
-                    <th>Category</th>
-                    <th>Price</th>
-                    <th>Stock</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.length === 0 ? (
-                    <tr>
-                      <td colSpan="7">No products found.</td>
-                    </tr>
-                  ) : (
-                    products.map((product) => (
-                      <tr key={product._id}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label={`Select ${product.name}`}
-                            checked={selectedIds.includes(product._id)}
-                            onChange={() => toggleProductSelection(product._id)}
-                          />
-                        </td>
-                        <td>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "10px",
-                            }}
-                          >
-                            {(product.images?.[0]?.url || product.image) ? (
-                              <img
-                                src={product.images?.[0]?.url || product.image}
-                                alt={product.name}
-                                loading="lazy"
-                                style={{
-                                  width: "55px",
-                                  height: "55px",
-                                  objectFit: "contain",
-                                  borderRadius: "6px",
-                                  border: "1px solid #ead5df",
-                                  background: "#fff",
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  width: "55px",
-                                  height: "55px",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  border: "1px dashed #d8b8c5",
-                                  borderRadius: "6px",
-                                  fontSize: "11px",
-                                  color: "#888",
-                                }}
-                              >
-                                No image
-                              </div>
-                            )}
-                            <span>{product.name}</span>
-                          </div>
-                        </td>
-                        <td>{product.artist}</td>
-                        <td>{product.category}</td>
-                        <td>₱{Number(product.price).toLocaleString()}</td>
-                        <td>{product.stock}</td>
-                        <td>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigate(`/admin/product/${product._id}/edit`)
-                            }
-                          >
-                            Edit
-                          </button>{" "}
-                          <button
-                            type="button"
-                            onClick={() => deleteProduct(product._id)}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+           
+<div className="admin-table-wrapper">
+  <DataTable
+    className="admin-table display"
+    data={products}
+    columns={[
+      { title: "Select", data: "_id", orderable: false, searchable: false },
+      { title: "Product", data: "name" },
+      { title: "Artist", data: "artist" },
+      { title: "Category", data: "category" },
+      { title: "Price", data: "price" },
+      { title: "Stock", data: "stock" },
+      { title: "Actions", data: "_id", orderable: false, searchable: false },
+    ]}
+    slots={{
+      0: (_id, product) => (
+        <input
+          type="checkbox"
+          aria-label={`Select ${product.name}`}
+          checked={selectedIds.includes(product._id)}
+          onChange={() => toggleProductSelection(product._id)}
+        />
+      ),
+
+      1: (name, product) => (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          {product.images?.[0]?.url || product.image ? (
+            <img
+              src={product.images?.[0]?.url || product.image}
+              alt={name}
+              loading="lazy"
+              style={{
+                width: "55px",
+                height: "55px",
+                objectFit: "contain",
+                borderRadius: "6px",
+                border: "1px solid #ead5df",
+                background: "#fff",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "55px",
+                height: "55px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1px dashed #d8b8c5",
+                borderRadius: "6px",
+                fontSize: "11px",
+                color: "#888",
+              }}
+            >
+              No image
             </div>
+          )}
+          <span>{name}</span>
+        </div>
+      ),
+
+      4: (price) => `₱${Number(price).toLocaleString()}`,
+
+      6: (_id, product) => (
+        <>
+          <button
+            type="button"
+            onClick={() =>
+              navigate(`/admin/product/${product._id}/edit`)
+            }
+          >
+            Edit
+          </button>{" "}
+          <button
+            type="button"
+            onClick={() => deleteProduct(product._id)}
+          >
+            Delete
+          </button>
+        </>
+      ),
+    }}
+    options={{
+      pageLength: 10,
+      lengthMenu: [5, 10, 25, 50],
+      order: [[1, "asc"]],
+      language: {
+        emptyTable: "No products found.",
+        search: "Search products:",
+        lengthMenu: "Show _MENU_ products",
+      },
+    }}
+  >
+    <thead>
+      <tr>
+        <th>
+          <input
+            type="checkbox"
+            aria-label="Select all products"
+            checked={
+              products.length > 0 &&
+              products.every((product) =>
+                selectedIds.includes(product._id)
+              )
+            }
+            onChange={toggleSelectAll}
+          />
+        </th>
+        <th>Product</th>
+        <th>Artist</th>
+        <th>Category</th>
+        <th>Price</th>
+        <th>Stock</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+  </DataTable>
+</div>
+
           )}
         </section>
       </main>

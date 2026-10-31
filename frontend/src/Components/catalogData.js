@@ -7,6 +7,7 @@ export const categories = [
   "Lightsticks",
   "Posters",
   "Accessories",
+  "Other",
 ];
 
 export const sampleProducts = [

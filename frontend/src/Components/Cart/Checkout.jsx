@@ -1,11 +1,11 @@
 
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Header from "../Layout/Header";
 import Footer from "../Layout/Footer";
-import { clearCart } from "../../actions/cartActions";
+import { removeFromCart } from "../../actions/cartActions";
 import { API } from "../../api";
 
 const initialShippingInfo = {
@@ -19,15 +19,40 @@ const initialShippingInfo = {
 export default function Checkout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const user = useSelector((state) => state.user.user);
+  const location = useLocation();
+    const user = useSelector((state) => state.user.user);
   const items = useSelector((state) => state.cart.items);
+  const [checkoutProductIds] = useState(() => {
+    const selectedIds = location.state?.productIds;
+    if (Array.isArray(selectedIds) && selectedIds.length) {
+      sessionStorage.setItem("checkoutProductIds", JSON.stringify(selectedIds));
+      return selectedIds.map(String);
+    }
 
+    try {
+      const savedIds = JSON.parse(sessionStorage.getItem("checkoutProductIds"));
+      return Array.isArray(savedIds) && savedIds.length ? savedIds.map(String) : null;
+    } catch {
+      return null;
+    }
+  });
+  const checkoutItems = checkoutProductIds
+    ? items.filter((item) => checkoutProductIds.includes(String(item.product)))
+    : items;
+
+  // Stores the customer's shipping details.
   const [shippingInfo, setShippingInfo] = useState(initialShippingInfo);
+
+  // Stores the selected payment method.
+  const [paymentMethod, setPaymentMethod] = useState("COD");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [cardInfo, setCardInfo] = useState({ cardNumber: "", expiry: "", cvc: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = items.reduce(
+  const cartItemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const itemCount = checkoutItems.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotal = checkoutItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
@@ -49,7 +74,7 @@ export default function Checkout() {
     event.preventDefault();
     setError("");
 
-    if (!items.length) {
+    if (!checkoutItems.length) {
       setError("Your cart is empty.");
       return;
     }
@@ -66,9 +91,11 @@ export default function Checkout() {
     try {
       const { data } = await axios.post(
         `${API}/order/new`,
-        {
+                {
           shippingInfo,
-          items: items.map((item) => ({
+          paymentMethod,
+          paymentAmount: paymentMethod === "E-payment" ? Number(paymentAmount) : undefined,
+          items: checkoutItems.map((item) => ({
             productId: item.product,
             quantity: item.quantity,
           })),
@@ -84,7 +111,8 @@ export default function Checkout() {
         throw new Error("The server did not confirm the order.");
       }
 
-      dispatch(clearCart());
+      checkoutItems.forEach((item) => dispatch(removeFromCart(item.product)));
+      sessionStorage.removeItem("checkoutProductIds");
       navigate(`/order/success/${data.order._id}`, { replace: true });
     } catch (err) {
       setError(
@@ -99,13 +127,13 @@ export default function Checkout() {
 
   return (
     <>
-      <Header cartCount={itemCount} user={user} />
+      <Header cartCount={cartItemCount} user={user} />
 
       <main className="cart-page">
         <h1>Checkout</h1>
         <p>Enter your shipping details to place your order.</p>
 
-        {items.length === 0 ? (
+        {checkoutItems.length === 0 ? (
           <section className="cart-empty">
             <h2>Your cart is empty</h2>
             <Link to="/" className="cart-button">
@@ -157,6 +185,114 @@ export default function Checkout() {
                 </label>
               ))}
 
+              
+              <h2>Payment Method</h2>
+
+              <div className="payment-method-options">
+                <label>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="Card"
+                    checked={paymentMethod === "Card"}
+                    onChange={(event) =>
+                      setPaymentMethod(event.target.value)
+                    }
+                  />
+                  Card Payment
+                </label>
+
+                <label>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="E-payment"
+                    checked={paymentMethod === "E-payment"}
+                    onChange={(event) =>
+                      setPaymentMethod(event.target.value)
+                    }
+                  />
+                  E-payment (e-wallet)
+                </label>
+
+                <label>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="COD"
+                    checked={paymentMethod === "COD"}
+                    onChange={(event) =>
+                      setPaymentMethod(event.target.value)
+                    }
+                  />
+                  Cash on Delivery (COD)
+                </label>
+              </div>
+
+              {paymentMethod === "Card" && (
+                <fieldset className="checkout-payment-fields">
+                  <legend>Card Info</legend>
+                  <label htmlFor="card-number">Card Number</label>
+                  <input
+                    id="card-number"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="cc-number"
+                    maxLength={19}
+                    value={cardInfo.cardNumber}
+                    onChange={(event) => setCardInfo({ ...cardInfo, cardNumber: event.target.value })}
+                    placeholder="Card number"
+                    required
+                  />
+                  <label htmlFor="card-expiry">Card Expiry</label>
+                  <input
+                    id="card-expiry"
+                    type="text"
+                    autoComplete="cc-exp"
+                    maxLength={5}
+                    value={cardInfo.expiry}
+                    onChange={(event) => setCardInfo({ ...cardInfo, expiry: event.target.value })}
+                    placeholder="MM/YY"
+                    required
+                  />
+                  <label htmlFor="card-cvc">Card CVC</label>
+                  <input
+                    id="card-cvc"
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="cc-csc"
+                    maxLength={4}
+                    value={cardInfo.cvc}
+                    onChange={(event) => setCardInfo({ ...cardInfo, cvc: event.target.value })}
+                    placeholder="CVC"
+                    required
+                  />
+                  <p className="cart-note">Demo checkout only. Card details are not saved or charged.</p>
+                </fieldset>
+              )}
+
+              {paymentMethod === "E-payment" && (
+                <div className="checkout-payment-fields">
+                  <label htmlFor="payment-amount">E-wallet amount (₱)</label>
+                  <input
+                    id="payment-amount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={paymentAmount}
+                    onChange={(event) => setPaymentAmount(event.target.value)}
+                    placeholder="Enter the amount paid"
+                    required
+                  />
+                  <p className="cart-note">Enter the exact total shown in your order summary: {formatPrice(subtotal)}.</p>
+                </div>
+              )}
+
+              {paymentMethod === "COD" && (
+                <p className="cart-note">Pay the order total when it is delivered.</p>
+              )}
+
+
               {error && (
                 <p role="alert" style={{ color: "red" }}>
                   {error}
@@ -166,7 +302,7 @@ export default function Checkout() {
               <button
                 className="cart-button"
                 type="submit"
-                disabled={loading || items.length === 0}
+                disabled={loading || checkoutItems.length === 0}
               >
                 {loading ? "Placing Order..." : "Place Order"}
               </button>
@@ -179,7 +315,7 @@ export default function Checkout() {
             <aside className="cart-summary">
               <h2>Order Summary</h2>
 
-              {items.map((item) => (
+              {checkoutItems.map((item) => (
                 <div
                   className="cart-summary-row"
                   key={item.product}
