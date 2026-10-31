@@ -4,8 +4,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Header from "./Layout/Header";
 import Footer from "./Layout/Footer";
-import { API, sampleProducts } from "./catalogData";
+import { sampleProducts } from "./catalogData";
 import { addToCart } from "../actions/cartActions";
+import {
+  clearProductDetails,
+  fetchProductDetails,
+  updateProductDetails,
+} from "../actions/productActions";
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -14,11 +19,12 @@ export default function ProductDetails() {
 
   const user = useSelector((state) => state.user?.user);
   const cartItems = useSelector((state) => state.cart?.items || []);
+  const product = useSelector((state) => state.products.current);
+  const loading = useSelector((state) => state.products.detailsLoading);
+  const detailsError = useSelector((state) => state.products.detailsError);
 
-  const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState("");
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [reviewRating, setReviewRating] = useState(0);
@@ -31,55 +37,17 @@ export default function ProductDetails() {
   );
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchProduct() {
-      setLoading(true);
-      setError("");
-      setProduct(null);
-      setMessage("");
-      setQuantity(1);
-
-      if (!/^[a-f\d]{24}$/i.test(id || "")) {
-        setError("Invalid product ID. Please select a product from the store.");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(`${API}/product/${id}`);
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || "Unable to load this product.");
-        }
-
-        const fetchedProduct = data.product || data;
-
-        if (!fetchedProduct?._id) {
-          throw new Error("Product not found.");
-        }
-
-        if (!cancelled) {
-          setProduct(fetchedProduct);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err.message || "Unable to load this product.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+    dispatch(clearProductDetails());
+    setError("");
+    setMessage("");
+    setQuantity(1);
+    if (!/^[a-f\d]{24}$/i.test(id || "")) {
+      setError("Invalid product ID. Please select a product from the store.");
+      return undefined;
     }
-
-    fetchProduct();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+    dispatch(fetchProductDetails(id)).catch(() => {});
+    return () => dispatch(clearProductDetails());
+  }, [dispatch, id]);
 
   const images = product
     ? [
@@ -134,7 +102,7 @@ export default function ProductDetails() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Unable to save your review.");
-      setProduct(data.product);
+      dispatch(updateProductDetails(data.product));
       setMessage(data.message);
     } catch (err) {
       setMessage(err.message || "Unable to save your review.");
@@ -176,9 +144,9 @@ export default function ProductDetails() {
 
         {loading ? (
           <p>Loading product...</p>
-        ) : error ? (
+        ) : error || detailsError ? (
           <section className="product-error" role="alert">
-            <p>{error}</p>
+            <p>{error || detailsError}</p>
             <button type="button" onClick={() => navigate("/")}>
               Return to Store
             </button>

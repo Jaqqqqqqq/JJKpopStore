@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import DataTable from "datatables.net-react";
 import DT from "datatables.net-dt";
 import "../App.css";
 import CustomModal from "../Components/Common/CustomModal";
+import { fetchAdminProducts, removeAdminProduct, removeAdminProducts } from "../actions/productActions";
 
 import "datatables.net-dt/css";
 
@@ -12,9 +14,11 @@ DataTable.use(DT);
 const API = import.meta.env.VITE_API || "http://localhost:5000/api/v1";
 
 function AdminDashboard() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const dispatch = useDispatch();
+  const productState = useSelector((state) => state.products);
+  const products = productState.adminItems;
+  const loading = productState.adminLoading;
+  const error = productState.adminError;
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
@@ -27,25 +31,8 @@ function AdminDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    fetch(`${API}/admin/products`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("Failed to load products.");
-        return response.json();
-      })
-      .then((data) => setProducts(data.products || []))
-      .catch((requestError) => {
-        setError(
-          requestError.message === "Failed to load products."
-            ? "Could not load admin products. Your session may be expired or this account may not have the admin role."
-            : "Cannot load products. Check if your backend is running."
-        );
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    dispatch(fetchAdminProducts()).catch(() => {});
+  }, [dispatch]);
 
   const showPopup = ({
     title,
@@ -95,9 +82,7 @@ function AdminDashboard() {
             throw new Error(data.message || "Failed to delete product.");
           }
 
-          setProducts((current) =>
-            current.filter((product) => product._id !== id)
-          );
+          dispatch(removeAdminProduct(id));
           setSelectedIds((current) =>
             current.filter((selectedId) => selectedId !== id)
           );
@@ -171,9 +156,7 @@ function AdminDashboard() {
             throw new Error(data.message || "Bulk deletion failed.");
           }
 
-          setProducts((current) =>
-            current.filter((product) => !idsToDelete.includes(product._id))
-          );
+          dispatch(removeAdminProducts(idsToDelete));
           setSelectedIds([]);
 
           showPopup({

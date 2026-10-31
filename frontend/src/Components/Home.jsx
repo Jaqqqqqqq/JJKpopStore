@@ -5,14 +5,11 @@ import { useDispatch, useSelector } from "react-redux";
 import Pagination from "@mui/material/Pagination";
 import Header from "./Layout/Header";
 import Footer from "./Layout/Footer";
-import { API, categories, sampleProducts } from "./catalogData";
+import { categories, sampleProducts } from "./catalogData";
 import { addToCart } from "../actions/cartActions";
+import { fetchProducts } from "../actions/productActions";
 
 export default function Home({ user }) {
-  const [products, setProducts] = useState(sampleProducts);
-  const [productCount, setProductCount] = useState(sampleProducts.length);
-  const [hasMore, setHasMore] = useState(false);
-  const [productsLoading, setProductsLoading] = useState(true);
   const [listMode, setListMode] = useState("pages");
   const [currentPage, setCurrentPage] = useState(1);
   const [category, setCategory] = useState("All");
@@ -29,59 +26,33 @@ export default function Home({ user }) {
   const searchQuery = (searchParams.get("search") || "").trim().toLowerCase();
 
   const cartItems = useSelector((state) => state.cart?.items || []);
+  const productState = useSelector((state) => state.products);
+  const products = productState.items.length || !productState.error
+    ? productState.items
+    : sampleProducts;
+  const productCount = productState.error
+    ? sampleProducts.length
+    : productState.filteredProductsCount;
+  const hasMore = productState.hasMore;
+  const productsLoading = productState.loading;
   const cartCount = cartItems.reduce(
     (total, item) => total + (Number(item.quantity) || 0),
     0
   );
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchProducts() {
-      setProductsLoading(true);
-      try {
-        const params = new URLSearchParams({
-          page: String(currentPage),
-          limit: "12",
-          keyword: searchQuery,
-          category,
-          rating: minimumRating,
-          reviews: reviewFilter,
-        });
-        if (minPrice !== "") params.set("minPrice", minPrice);
-        if (maxPrice !== "") params.set("maxPrice", maxPrice);
-        const response = await fetch(`${API}/products?${params}`);
-        if (!response.ok) throw new Error("Failed to load products.");
-
-        const data = await response.json();
-
-        if (!cancelled) {
-          const newProducts = data.products || [];
-          setProducts((existing) =>
-            listMode === "infinite" && currentPage > 1
-              ? [...existing, ...newProducts]
-              : newProducts
-          );
-          setProductCount(Number(data.filteredProductsCount ?? data.count ?? newProducts.length));
-          setHasMore(Boolean(data.hasMore));
-        }
-      } catch {
-        if (!cancelled && currentPage === 1) {
-          setProducts(sampleProducts);
-          setProductCount(sampleProducts.length);
-          setHasMore(false);
-        }
-      } finally {
-        if (!cancelled) setProductsLoading(false);
-      }
-    }
-
-    fetchProducts();
-
-    return () => {
-      cancelled = true;
+    const filters = {
+      page: String(currentPage),
+      limit: "12",
+      keyword: searchQuery,
+      category,
+      rating: minimumRating,
+      reviews: reviewFilter,
     };
-  }, [currentPage, listMode, category, minPrice, maxPrice, minimumRating, reviewFilter, searchQuery]);
+    if (minPrice !== "") filters.minPrice = minPrice;
+    if (maxPrice !== "") filters.maxPrice = maxPrice;
+    dispatch(fetchProducts(filters, listMode === "infinite" && currentPage > 1)).catch(() => {});
+  }, [dispatch, currentPage, listMode, category, minPrice, maxPrice, minimumRating, reviewFilter, searchQuery]);
 
   useEffect(() => {
     setCurrentPage(1);
