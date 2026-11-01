@@ -18,6 +18,7 @@ import ProductDetails from "./Components/ProductDetails";
 import ReviewsList from "./Components/Admin/ReviewsList";
 import CustomerProfile from "./Components/User/CustomerProfile";
 import ChartsPage from "./Components/Admin/ChartsPage";
+import CategoriesPage from "./Components/Admin/CategoriesPage";
 
 
 function StoreApp() {
@@ -51,6 +52,7 @@ function StoreApp() {
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/charts" element={<ChartsPage />} />
+        <Route path="/admin/categories" element={<CategoriesPage />} />
         <Route path="/admin/orders" element={<OrdersList />} />
         <Route path="/admin/reviews" element={<ReviewsList />} />
         <Route path="/admin/product/new" element={<NewProduct />} />

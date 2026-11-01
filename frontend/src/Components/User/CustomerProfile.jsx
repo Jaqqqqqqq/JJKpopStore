@@ -7,6 +7,7 @@ import Footer from "../Layout/Footer";
 import { API } from "../../api";
 import { AUTH_SUCCESS } from "../../actions/userActions";
 import { profileValidationSchema } from "../../schemas/formSchemas";
+import { showNotification } from "../../utils/notifications";
 
 export default function CustomerProfile() {
   const dispatch = useDispatch();
@@ -33,9 +34,13 @@ export default function CustomerProfile() {
         const updatedUser = { ...user, ...data.user, role: user.role };
         localStorage.setItem("user", JSON.stringify(updatedUser));
         dispatch({ type: AUTH_SUCCESS, payload: updatedUser });
-        setMessage(data.message || "Profile updated successfully.");
+        const message = data.message || "Profile updated successfully.";
+        setMessage(message);
+        showNotification({ title: "Profile updated", text: message });
       } catch (error) {
-        setRequestError(error.response?.data?.message || "Unable to update your profile.");
+        const message = error.response?.data?.message || "Unable to update your profile.";
+        setRequestError(message);
+        showNotification({ title: "Profile update failed", text: message, icon: "error" });
       }
     },
   });

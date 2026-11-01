@@ -1,8 +1,9 @@
+import { useEffect, useRef } from "react";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
+import "../../App.css";
 
-import { useEffect } from "react";
-import "../Common/CustomModal.css";
-
-const CustomModal = ({
+export default function CustomModal({
   isOpen,
   title,
   message,
@@ -12,79 +13,42 @@ const CustomModal = ({
   onConfirm,
   onCancel,
   showCancel = false,
-}) => {
+}) {
+  const actionsRef = useRef({ onConfirm, onCancel });
+  actionsRef.current = { onConfirm, onCancel };
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) return undefined;
+    let active = true;
 
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape" && onCancel) {
-        onCancel();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
+    Swal.fire({
+      icon: type,
+      title,
+      text: message,
+      showCancelButton: showCancel,
+      confirmButtonText: confirmText,
+      cancelButtonText: cancelText,
+      allowOutsideClick: false,
+      allowEscapeKey: showCancel,
+      buttonsStyling: false,
+      customClass: {
+        popup: "jj-swal-popup",
+        title: "jj-swal-title",
+        htmlContainer: "jj-swal-text",
+        confirmButton: "jj-swal-confirm",
+        cancelButton: "jj-swal-cancel",
+      },
+    }).then((result) => {
+      if (!active) return;
+      if (result.isConfirmed) actionsRef.current.onConfirm?.();
+      else actionsRef.current.onCancel?.();
+    });
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      active = false;
+      Swal.close();
     };
-  }, [isOpen, onCancel]);
+  }, [isOpen, title, message, type, confirmText, cancelText, showCancel]);
 
-  if (!isOpen) return null;
-
-  const icon = {
-    success: "✓",
-    error: "!",
-    warning: "!",
-    info: "i",
-  }[type] || "i";
-
-  return (
-    <div
-      className="custom-modal-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && onCancel) {
-          onCancel();
-        }
-      }}
-    >
-      <section
-        className="custom-modal"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="custom-modal-title"
-        aria-describedby="custom-modal-message"
-      >
-        <div className={`custom-modal-icon ${type}`}>
-          {icon}
-        </div>
-
-        <h2 id="custom-modal-title">{title}</h2>
-
-        <p id="custom-modal-message">{message}</p>
-
-        <div className="custom-modal-actions">
-          {showCancel && (
-            <button
-              type="button"
-              className="custom-modal-button secondary"
-              onClick={onCancel}
-            >
-              {cancelText}
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="custom-modal-button primary"
-            onClick={onConfirm}
-            autoFocus
-          >
-            {confirmText}
-          </button>
-        </div>
-      </section>
-    </div>
-  );
-};
-
-export default CustomModal;
+  return null;
+}

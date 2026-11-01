@@ -18,14 +18,8 @@ const productSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: [
-        "Albums",
-        "Photocards",
-        "Lightsticks",
-        "Posters",
-        "Accessories",
-        "Other"
-      ]
+      trim: true,
+      maxlength: 50,
     },
 
     description: {

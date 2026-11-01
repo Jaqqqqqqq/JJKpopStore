@@ -11,6 +11,7 @@ import {
   fetchProductDetails,
   updateProductDetails,
 } from "../actions/productActions";
+import { showNotification } from "../utils/notifications";
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -96,6 +97,7 @@ export default function ProductDetails() {
 
     if (!reviewRating || !reviewComment.trim()) {
       setMessage("Choose a rating and write a review before submitting.");
+      showNotification({ title: "Review is incomplete", text: "Choose a rating and write a review before submitting.", icon: "warning" });
       return;
     }
 
@@ -117,8 +119,10 @@ export default function ProductDetails() {
       );
       if (savedReview) setReviewComment(savedReview.comment);
       setMessage(data.message);
+      showNotification({ title: ownReview ? "Review updated" : "Review submitted", text: data.message || "Your review was saved." });
     } catch (err) {
       setMessage(err.message || "Unable to save your review.");
+      showNotification({ title: "Unable to save review", text: err.message || "Unable to save your review.", icon: "error" });
     } finally {
       setReviewSaving(false);
     }
@@ -129,17 +133,20 @@ export default function ProductDetails() {
 
     if (unavailable) {
       setMessage("Sorry, this product is currently unavailable.");
+      showNotification({ title: "Product unavailable", text: "Sorry, this product is currently unavailable.", icon: "warning" });
       return;
     }
 
     if (!Number.isInteger(Number(quantity)) || Number(quantity) < 1 ||
         Number(quantity) > stock) {
       setMessage(`Please select a quantity between 1 and ${stock}.`);
+      showNotification({ title: "Check the quantity", text: `Please select a quantity between 1 and ${stock}.`, icon: "warning" });
       return;
     }
 
     dispatch(addToCart(product, Number(quantity)));
     setMessage(`${product.name} added to your cart!`);
+    showNotification({ title: "Added to cart", text: `${product.name} added to your cart!` });
   }
 
   return (

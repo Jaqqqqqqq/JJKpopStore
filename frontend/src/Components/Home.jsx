@@ -4,11 +4,13 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Header from "./Layout/Header";
 import Footer from "./Layout/Footer";
-import { categories, sampleProducts } from "./catalogData";
+import { categories as defaultCategories, sampleProducts } from "./catalogData";
 import { addToCart } from "../actions/cartActions";
 import { fetchProducts } from "../actions/productActions";
+import { showNotification } from "../utils/notifications";
 
 export default function Home({ user }) {
+  const [categoryOptions, setCategoryOptions] = useState(defaultCategories);
   const [currentPage, setCurrentPage] = useState(1);
   const [category, setCategory] = useState("All");
   const [minPrice, setMinPrice] = useState("");
@@ -23,6 +25,7 @@ export default function Home({ user }) {
   const [searchParams] = useSearchParams();
   const loadMoreRef = useRef(null);
   const searchQuery = (searchParams.get("search") || "").trim().toLowerCase();
+  const API = import.meta.env.VITE_API || "http://localhost:5000/api/v1";
 
   const cartItems = useSelector((state) => state.cart?.items || []);
   const productState = useSelector((state) => state.products);
@@ -38,6 +41,17 @@ export default function Home({ user }) {
     (total, item) => total + (Number(item.quantity) || 0),
     0
   );
+
+  useEffect(() => {
+    fetch(`${API}/categories`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (Array.isArray(data.categories)) {
+          setCategoryOptions(["All", ...data.categories.map((item) => item.name)]);
+        }
+      })
+      .catch(() => {});
+  }, [API]);
 
   useEffect(() => {
     const filters = {
@@ -114,7 +128,9 @@ export default function Home({ user }) {
   function openProduct(product) {
     // Sample IDs such as "a" are not MongoDB product IDs.
     if (!/^[a-f\d]{24}$/i.test(product?._id || "")) {
-      setCartMessage("This is a sample product. Select a saved store product to view its details.");
+      const message = "This is a sample product. Select a saved store product to view its details.";
+      setCartMessage(message);
+      showNotification({ title: "Sample product", text: message, icon: "info" });
       return;
     }
 
@@ -123,17 +139,22 @@ export default function Home({ user }) {
 
   function handleAddToCart(product) {
     if (!product?._id || !/^[a-f\d]{24}$/i.test(product._id)) {
-      setCartMessage("This sample product is for display only. Please add a saved store product to your cart.");
+      const message = "This sample product is for display only. Please add a saved store product to your cart.";
+      setCartMessage(message);
+      showNotification({ title: "Cannot add sample product", text: message, icon: "warning" });
       return;
     }
 
     if (product.isAvailable === false || Number(product.stock) < 1) {
-      setCartMessage(`${product.name} is currently unavailable.`);
+      const message = `${product.name} is currently unavailable.`;
+      setCartMessage(message);
+      showNotification({ title: "Product unavailable", text: message, icon: "warning" });
       return;
     }
 
     dispatch(addToCart(product));
     setCartMessage(`${product.name} added to your cart!`);
+    showNotification({ title: "Added to cart", text: `${product.name} added to your cart!` });
   }
 
   return (
@@ -215,7 +236,7 @@ export default function Home({ user }) {
           </h2>
 
           <div className="categories">
-            {categories.map((item) => (
+            {categoryOptions.map((item) => (
               <button
                 key={item}
                 type="button"

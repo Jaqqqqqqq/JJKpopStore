@@ -1306,6 +1306,175 @@ footer {
   padding: 22px;
 }
 
+.artist-groups-section {
+  margin-bottom: 28px;
+}
+
+.artist-groups-section h2 {
+  margin-top: 0;
+}
+
+.artist-group-form {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.artist-group-form label {
+  display: grid;
+  gap: 6px;
+  color: #806b79;
+  font-size: 14px;
+}
+
+.artist-group-form input {
+  min-width: min(320px, 70vw);
+  padding: 11px 13px;
+  border: 1px solid #ead5df;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.artist-group-success {
+  color: #27804a;
+}
+
+.artist-group-list {
+  color: #806b79;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.catalog-management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.catalog-management-card h2 {
+  margin-top: 0;
+}
+
+.catalog-entry-form {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.catalog-entry-form label {
+  color: #806b79;
+  font-size: 14px;
+}
+
+.catalog-entry-form input {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid #ead5df;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.catalog-form-actions,
+.catalog-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.catalog-entry-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-entry-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #f1dce5;
+  border-radius: 8px;
+}
+
+.catalog-row-actions button {
+  padding: 6px 9px;
+  border: 1px solid #e8c8d5;
+  border-radius: 6px;
+  background: white;
+  color: #9e4766;
+  cursor: pointer;
+}
+
+.catalog-success {
+  color: #27804a;
+}
+
+.swal2-container {
+  z-index: 3000 !important;
+}
+
+.swal2-backdrop-show {
+  background: rgba(48, 33, 42, 0.46) !important;
+  backdrop-filter: blur(4px);
+}
+
+.jj-swal-popup {
+  width: min(520px, calc(100vw - 32px)) !important;
+  padding: 34px 30px 30px !important;
+  border: 1px solid #f1dce5 !important;
+  border-radius: 24px !important;
+  font-family: Nunito, "Segoe UI", sans-serif !important;
+}
+
+.jj-swal-title {
+  margin-top: 18px !important;
+  color: #382a34 !important;
+  font-size: 27px !important;
+  font-weight: 800 !important;
+}
+
+.jj-swal-text {
+  color: #807783 !important;
+  font-size: 17px !important;
+}
+
+.jj-swal-confirm,
+.jj-swal-cancel {
+  min-width: 74px;
+  margin: 8px 5px 0;
+  padding: 13px 24px;
+  border: 0;
+  border-radius: 13px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.jj-swal-confirm {
+  background: #d94f84;
+  color: white;
+}
+
+.jj-swal-confirm:hover {
+  background: #c83f74;
+}
+
+.jj-swal-cancel {
+  background: #fff0f5;
+  color: #9e4766;
+}
+
+@media (max-width: 900px) {
+  .catalog-management-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-stat-card p {
   color: #806b79;
   margin: 0 0 12px;

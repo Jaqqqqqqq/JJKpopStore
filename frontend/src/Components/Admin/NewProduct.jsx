@@ -5,23 +5,25 @@ import axios from "axios";
 import "../../App.css";
 import CustomModal from "../Common/CustomModal";
 import { newProductValidationSchema } from "../../schemas/formSchemas";
+import { showNotification } from "../../utils/notifications";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000/api/v1";
-const categories = ["Albums", "Photocards", "Lightsticks", "Posters", "Accessories", "Other"];
-
 const NewProduct = () => {
   const [error, setError] = useState("");
+  const [artists, setArtists] = useState([]);
+  const [artistsError, setArtistsError] = useState("");
+  const [categories, setCategories] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [popupOpen, setPopupOpen] = useState(false);
   const navigate = useNavigate();
   const formik = useFormik({
-    initialValues: { name: "", artist: "", price: "", description: "", category: "Albums", stock: "", images: [] },
+    initialValues: { name: "", artist: "", customArtist: "", price: "", description: "", category: "Albums", stock: "", images: [] },
     validationSchema: newProductValidationSchema,
     onSubmit: async (values) => {
       setError("");
       const formData = new FormData();
       formData.append("name", values.name.trim());
-      formData.append("artist", values.artist.trim());
+      formData.append("artist", (values.artist === "Other" ? values.customArtist : values.artist).trim());
       formData.append("price", values.price);
       formData.append("description", values.description.trim());
       formData.append("category", values.category);
@@ -33,14 +35,46 @@ const NewProduct = () => {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         if (data.success) setPopupOpen(true);
-        else setError(data.message || "Failed to create product.");
+        else {
+          const message = data.message || "Failed to create product.";
+          setError(message);
+          showNotification({ title: "Product creation failed", text: message, icon: "error" });
+        }
       } catch (requestError) {
-        setError(requestError.response?.data?.message || requestError.message || "Failed to create product.");
+        const message = requestError.response?.data?.message || requestError.message || "Failed to create product.";
+        setError(message);
+        showNotification({ title: "Product creation failed", text: message, icon: "error" });
       }
     },
   });
   const files = formik.values.images;
   const loading = formik.isSubmitting;
+
+  useEffect(() => {
+    if (categories.length && !categories.some((item) => item.name === formik.values.category)) {
+      formik.setFieldValue("category", categories[0].name);
+    }
+  }, [categories, formik.values.category]);
+
+  useEffect(() => {
+    const getArtists = async () => {
+      try {
+        const { data } = await axios.get(`${API}/admin/artists`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        setArtists(data.artists || []);
+      } catch (requestError) {
+        setArtistsError(requestError.response?.data?.message || "Unable to load artist / group list.");
+      }
+    };
+    getArtists();
+  }, []);
+
+  useEffect(() => {
+    axios.get(`${API}/categories`)
+      .then(({ data }) => setCategories(data.categories || []))
+      .catch((requestError) => setError(requestError.response?.data?.message || "Unable to load categories."));
+  }, []);
 
   useEffect(() => {
     const urls = files.map((file) => URL.createObjectURL(file));
@@ -69,6 +103,7 @@ const NewProduct = () => {
             <Link to="/dashboard">Dashboard</Link>
             <Link to="/admin/charts">Charts</Link>
             <Link to="/dashboard#admin-products">Products</Link>
+            <Link to="/admin/categories">Categories</Link>
             <Link to="/admin/orders">Orders</Link>
             <Link to="/admin/reviews">Reviews</Link>
             <Link to="/admin/users">Users</Link>
@@ -89,9 +124,21 @@ const NewProduct = () => {
               </label>
 
               <label>Artist / Group
-                <input {...formik.getFieldProps("artist")} placeholder="e.g. SEVENTEEN" aria-invalid={Boolean(formik.touched.artist && formik.errors.artist)} />
+                <select {...formik.getFieldProps("artist")} aria-invalid={Boolean(formik.touched.artist && formik.errors.artist)}>
+                  <option value="">Select an artist / group</option>
+                  {artists.map((artist) => <option key={artist._id} value={artist.name}>{artist.name}</option>)}
+                  <option value="Other">Other</option>
+                </select>
                 {fieldError("artist")}
               </label>
+
+              {formik.values.artist === "Other" && (
+                <label>Artist / Group Name
+                  <input {...formik.getFieldProps("customArtist")} placeholder="e.g. BIGBANG and 2NE1" aria-invalid={Boolean(formik.touched.customArtist && formik.errors.customArtist)} />
+                  {fieldError("customArtist")}
+                </label>
+              )}
+              {artistsError && <p className="admin-error admin-full-width" role="alert">{artistsError}</p>}
 
               <label>Price (₱)
                 <input {...formik.getFieldProps("price")} type="number" min="0.01" step="0.01" aria-invalid={Boolean(formik.touched.price && formik.errors.price)} />
@@ -100,7 +147,7 @@ const NewProduct = () => {
 
               <label>Category
                 <select {...formik.getFieldProps("category")} aria-invalid={Boolean(formik.touched.category && formik.errors.category)}>
-                  {categories.map(item => <option key={item} value={item}>{item}</option>)}
+                  {categories.map(item => <option key={item._id} value={item.name}>{item.name}</option>)}
                 </select>
                 {fieldError("category")}
               </label>

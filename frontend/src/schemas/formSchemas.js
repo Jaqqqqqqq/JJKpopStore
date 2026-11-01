@@ -49,9 +49,14 @@ const imageField = Yup.mixed()
 const productFields = {
   name: Yup.string().trim().min(2, "Product name must be at least 2 characters.").max(100).required("Product name is required."),
   artist: Yup.string().trim().min(2, "Artist or group must be at least 2 characters.").max(80).required("Artist / group is required."),
+  customArtist: Yup.string().when("artist", {
+    is: "Other",
+    then: (schema) => schema.trim().min(2, "Enter the collaboration artist / group names.").max(80).required("Enter the artist / group name."),
+    otherwise: (schema) => schema.notRequired(),
+  }),
   price: Yup.number().transform((value, originalValue) => originalValue === "" ? undefined : value).typeError("Enter a valid price.").min(0.01, "Price must be greater than 0.").max(10000000, "Price is too large.").required("Price is required."),
   description: Yup.string().trim().min(10, "Description must be at least 10 characters.").max(2000).required("Description is required."),
-  category: Yup.string().oneOf(["Albums", "Photocards", "Lightsticks", "Posters", "Accessories", "Other"], "Choose a valid category.").required("Category is required."),
+  category: Yup.string().trim().min(2, "Category must be at least 2 characters.").max(50).required("Category is required."),
   stock: Yup.number().transform((value, originalValue) => originalValue === "" ? undefined : value).typeError("Enter a valid stock quantity.").integer("Stock must be a whole number.").min(0, "Stock cannot be negative.").max(1000000, "Stock is too large.").required("Stock is required."),
 };
 

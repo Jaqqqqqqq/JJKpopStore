@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import { useFormik } from "formik";
 import { authenticate, authenticateGoogle } from "../../actions/userActions";
 import { signInWithGoogle } from "../../firebase";
+import { showNotification } from "../../utils/notifications";
 import {
   loginValidationSchema,
   registerValidationSchema,
@@ -58,11 +59,11 @@ export default function AuthPage({ mode, onAuth }) {
             : location.state?.from?.pathname || "/";
         navigate(destination, { replace: true });
       } catch (error) {
-        setMessage(
-          error.message === "Failed to fetch"
+        const message = error.message === "Failed to fetch"
             ? "Could not reach the store server. Please make sure the backend is running."
-            : error.message
-        );
+            : error.message;
+        setMessage(message);
+        showNotification({ title: isRegister ? "Registration failed" : "Login failed", text: message, icon: "error" });
       }
     },
   });
@@ -78,7 +79,9 @@ export default function AuthPage({ mode, onAuth }) {
   useEffect(() => {
     if (location.state?.registered) {
       formik.resetForm();
-      setMessage("Account created successfully. Please log in to continue.");
+      const message = "Account created successfully. Please log in to continue.";
+      setMessage(message);
+      showNotification({ title: "Account created", text: message });
     }
   }, [location.state]);
 
@@ -99,7 +102,9 @@ export default function AuthPage({ mode, onAuth }) {
         : location.state?.from?.pathname || "/";
       navigate(destination, { replace: true });
     } catch (error) {
-      setMessage(error.message || "Google sign-in failed. Please try again.");
+      const message = error.message || "Google sign-in failed. Please try again.";
+      setMessage(message);
+      showNotification({ title: "Google sign-in failed", text: message, icon: "error" });
     } finally {
       setGoogleLoading(false);
     }

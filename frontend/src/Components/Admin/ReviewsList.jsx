@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import CustomModal from "../Common/CustomModal";
 import "../../App.css";
+import { showNotification } from "../../utils/notifications";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000/api/v1";
 
@@ -20,7 +21,10 @@ export default function ReviewsList() {
         if (!response.ok) throw new Error(data.message || "Unable to load reviews.");
         setProducts(data.products || []);
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => {
+        setError(err.message);
+        showNotification({ title: "Unable to load reviews", text: err.message, icon: "error" });
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -40,8 +44,10 @@ export default function ReviewsList() {
       setProducts((current) => current.map((product) =>
         product._id === data.product._id ? data.product : product
       ));
+      showNotification({ title: "Review deleted", text: "The customer review was deleted successfully." });
     } catch (err) {
       setError(err.message);
+      showNotification({ title: "Unable to delete review", text: err.message, icon: "error" });
     } finally {
       setPopupOpen(false);
       setSelectedReview(null);
@@ -56,6 +62,7 @@ export default function ReviewsList() {
           <Link to="/dashboard">Dashboard</Link>
           <Link to="/admin/charts">Charts</Link>
           <Link to="/dashboard#admin-products">Products</Link>
+          <Link to="/admin/categories">Categories</Link>
           <Link to="/admin/orders">Orders</Link>
           <Link to="/admin/reviews" className="active">Reviews</Link>
           <Link to="/admin/users">Users</Link>

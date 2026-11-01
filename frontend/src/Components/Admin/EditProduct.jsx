@@ -6,6 +6,7 @@ import axios from "axios";
 import "../../App.css";
 import CustomModal from "../Common/CustomModal";
 import { editProductValidationSchema } from "../../schemas/formSchemas";
+import { showNotification } from "../../utils/notifications";
 
 const API =
   import.meta.env.VITE_API || "http://localhost:5000/api/v1";
@@ -36,6 +37,8 @@ const EditProduct = () => {
   });
 
   const [previews, setPreviews] = useState([]);
+  const [artists, setArtists] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [error, setError] = useState("");
   const [popupOpen, setPopupOpen] = useState(false);
@@ -45,6 +48,7 @@ const EditProduct = () => {
     initialValues: {
       name: product.name,
       artist: product.artist,
+      customArtist: "",
       price: product.price,
       description: product.description,
       category: product.category,
@@ -56,7 +60,7 @@ const EditProduct = () => {
       setError("");
       const formData = new FormData();
       formData.append("name", values.name.trim());
-      formData.append("artist", values.artist.trim());
+      formData.append("artist", (values.artist === "Other" ? values.customArtist : values.artist).trim());
       formData.append("price", values.price);
       formData.append("description", values.description.trim());
       formData.append("category", values.category);
@@ -70,9 +74,15 @@ const EditProduct = () => {
           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         );
         if (data.success) setPopupOpen(true);
-        else setError(data.message || "Failed to update product.");
+        else {
+          const message = data.message || "Failed to update product.";
+          setError(message);
+          showNotification({ title: "Product update failed", text: message, icon: "error" });
+        }
       } catch (requestError) {
-        setError(requestError.response?.data?.message || requestError.message || "Failed to update product.");
+        const message = requestError.response?.data?.message || requestError.message || "Failed to update product.";
+        setError(message);
+        showNotification({ title: "Product update failed", text: message, icon: "error" });
       }
     },
   });
@@ -121,6 +131,18 @@ const EditProduct = () => {
   }, [id]);
 
   useEffect(() => {
+    axios.get(`${API}/admin/artists`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    }).then(({ data }) => setArtists(data.artists || [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    axios.get(`${API}/categories`)
+      .then(({ data }) => setCategories(data.categories || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const urls = files.map((file) => URL.createObjectURL(file));
     setPreviews(urls);
 
@@ -164,6 +186,7 @@ const EditProduct = () => {
             <Link to="/dashboard">Dashboard</Link>
             <Link to="/admin/charts">Charts</Link>
             <Link to="/dashboard#admin-products">Products</Link>
+            <Link to="/admin/categories">Categories</Link>
             <Link to="/admin/orders">Orders</Link>
             <Link to="/admin/reviews">Reviews</Link>
             <Link to="/admin/users">Users</Link>
@@ -201,12 +224,24 @@ const EditProduct = () => {
 
               <label>
                 Artist / Group
-                <input
+                <select
                   {...formik.getFieldProps("artist")}
                   aria-invalid={Boolean(formik.touched.artist && formik.errors.artist)}
-                />
+                >
+                  {product.artist && !artists.some((artist) => artist.name === product.artist) && <option value={product.artist}>{product.artist}</option>}
+                  <option value="">Select an artist / group</option>
+                  {artists.map((artist) => <option key={artist._id} value={artist.name}>{artist.name}</option>)}
+                  <option value="Other">Other</option>
+                </select>
                 {fieldError("artist")}
               </label>
+
+              {formik.values.artist === "Other" && (
+                <label>Artist / Group Name
+                  <input {...formik.getFieldProps("customArtist")} placeholder="e.g. BIGBANG and 2NE1" aria-invalid={Boolean(formik.touched.customArtist && formik.errors.customArtist)} />
+                  {fieldError("customArtist")}
+                </label>
+              )}
 
               <label>
                 Price (₱)
@@ -227,8 +262,8 @@ const EditProduct = () => {
                   aria-invalid={Boolean(formik.touched.category && formik.errors.category)}
                 >
                   {categories.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
+                    <option key={item._id} value={item.name}>
+                      {item.name}
                     </option>
                   ))}
                 </select>

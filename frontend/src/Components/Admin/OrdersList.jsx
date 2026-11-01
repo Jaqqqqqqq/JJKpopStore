@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "../../App.css";
+import { showNotification } from "../../utils/notifications";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000/api/v1";
 const STATUSES = [
@@ -50,7 +51,10 @@ export default function OrdersList() {
 
   useEffect(() => {
     loadOrders()
-      .catch((err) => setError(err.message))
+      .catch((err) => {
+        setError(err.message);
+        showNotification({ title: "Unable to load orders", text: err.message, icon: "error" });
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -99,8 +103,13 @@ export default function OrdersList() {
       }));
 
       setMessage(data.message || `Order ${orderId.slice(-8)} status saved as ${data.order.orderStatus}.`);
+      showNotification({
+        title: "Order status updated",
+        text: data.message || `Order ${orderId.slice(-8)} status saved as ${data.order.orderStatus}.`,
+      });
     } catch (err) {
       setError(err.message);
+      showNotification({ title: "Order update failed", text: err.message, icon: "error" });
       await loadOrders().catch(() => {});
     } finally {
       setSavingId("");
@@ -123,6 +132,7 @@ export default function OrdersList() {
           <Link to="/dashboard">Dashboard</Link>
           <Link to="/admin/charts">Charts</Link>
           <Link to="/dashboard#admin-products">Products</Link>
+          <Link to="/admin/categories">Categories</Link>
           <Link to="/admin/orders" className="active">Orders</Link>
           <Link to="/admin/reviews">Reviews</Link>
           <Link to="/admin/users">Users</Link>

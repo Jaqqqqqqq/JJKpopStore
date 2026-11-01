@@ -7,6 +7,7 @@ import Header from "../Layout/Header";
 import Footer from "../Layout/Footer";
 import { removeFromCart } from "../../actions/cartActions";
 import { API } from "../../api";
+import { showNotification } from "../../utils/notifications";
 
 const initialShippingInfo = {
   address: "",
@@ -76,6 +77,7 @@ export default function Checkout() {
 
     if (!checkoutItems.length) {
       setError("Your cart is empty.");
+      showNotification({ title: "Cart is empty", text: "Add a product before checking out.", icon: "warning" });
       return;
     }
 
@@ -83,6 +85,7 @@ export default function Checkout() {
 
     if (!token) {
       setError("Please log in again before checking out.");
+      showNotification({ title: "Please log in", text: "Log in again before checking out.", icon: "warning" });
       return;
     }
 
@@ -115,11 +118,11 @@ export default function Checkout() {
       sessionStorage.removeItem("checkoutProductIds");
       navigate(`/order/success/${data.order._id}`, { replace: true });
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
+      const message = err.response?.data?.message ||
           err.message ||
-          "Unable to place your order. Please try again."
-      );
+          "Unable to place your order. Please try again.";
+      setError(message);
+      showNotification({ title: "Unable to place order", text: message, icon: "error" });
     } finally {
       setLoading(false);
     }

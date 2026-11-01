@@ -1,6 +1,7 @@
 
 const mongoose = require("mongoose");
 const Product = require("../models/product");
+const Category = require("../models/category");
 const Order = require("../models/order");
 const { cleanReviewText } = require("../utils/reviewWordFilter");
 const {
@@ -203,6 +204,10 @@ exports.newProduct = async (req, res) => {
   const uploadedImages = [];
 
   try {
+    const category = await Category.findOne({ name: String(req.body.category || "").trim() });
+    if (!category) {
+      return res.status(400).json({ success: false, message: "Choose a category from the category list." });
+    }
     const files = req.files || [];
 
     // Upload each selected image to Cloudinary.
@@ -263,6 +268,11 @@ exports.updateProduct = async (req, res) => {
         success: false,
         message: "Product not found",
       });
+    }
+
+    const category = await Category.findOne({ name: String(req.body.category || "").trim() });
+    if (!category) {
+      return res.status(400).json({ success: false, message: "Choose a category from the category list." });
     }
 
     const files = req.files || [];

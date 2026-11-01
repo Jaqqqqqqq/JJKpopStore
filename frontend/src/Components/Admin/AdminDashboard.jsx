@@ -173,6 +173,7 @@ function AdminDashboard() {
           <Link to="/dashboard">Dashboard</Link>
           <Link to="/admin/charts">Charts</Link>
           <Link to="/dashboard#admin-products">Products</Link>
+          <Link to="/admin/categories">Categories</Link>
           <Link to="/admin/orders">Orders</Link>
           <Link to="/admin/reviews">Reviews</Link>
           <Link to="/admin/users">Users</Link>
