@@ -8,6 +8,22 @@ const {
   uploadProductImage,
 } = require("../utils/uploadProductImages");
 
+const cloudinaryPublicIdFromUrl = (imageUrl) => {
+  try {
+    const segments = new URL(imageUrl).pathname.split("/").filter(Boolean);
+    const uploadIndex = segments.indexOf("upload");
+    if (uploadIndex < 0) return null;
+    const assetPath = segments.slice(uploadIndex + 1);
+    const versionIndex = assetPath.findIndex((segment) => /^v\d+$/.test(segment));
+    if (versionIndex >= 0) assetPath.splice(0, versionIndex + 1);
+    if (!assetPath.length) return null;
+    assetPath[assetPath.length - 1] = assetPath.at(-1).replace(/\.[^.]+$/, "");
+    return assetPath.join("/");
+  } catch {
+    return null;
+  }
+};
+
 // Get all K-pop merchandise
 exports.getProducts = async (req, res) => {
   try {
@@ -277,6 +293,34 @@ exports.updateProduct = async (req, res) => {
 
     const files = req.files || [];
 
+    let deleteImageKeys = [];
+    try {
+      deleteImageKeys = req.body.deleteImageKeys
+        ? JSON.parse(req.body.deleteImageKeys)
+        : [];
+    } catch {
+      return res.status(400).json({ success: false, message: "Invalid image deletion request." });
+    }
+    if (!Array.isArray(deleteImageKeys) || deleteImageKeys.some((key) => typeof key !== "string")) {
+      return res.status(400).json({ success: false, message: "Invalid image deletion request." });
+    }
+    const deleteKeys = new Set(deleteImageKeys);
+    const removedImages = product.images.filter((image) =>
+      deleteKeys.has(image.publicId || image.url)
+    );
+    const deleteLegacyImage = req.body.deleteLegacyImage === "true";
+    const legacyImagePublicId = deleteLegacyImage
+      ? cloudinaryPublicIdFromUrl(product.image)
+      : null;
+    if (removedImages.length) {
+      product.images = product.images.filter((image) =>
+        !deleteKeys.has(image.publicId || image.url)
+      );
+    }
+    if (removedImages.length || deleteLegacyImage) {
+      product.image = product.images[0]?.url || "";
+    }
+
     // Upload newly selected images.
     for (const file of files) {
       const uploadedImage = await uploadProductImage(file);
@@ -318,9 +362,29 @@ exports.updateProduct = async (req, res) => {
 
     await product.save();
 
+    const cloudinaryIdsToDelete = new Set(
+      removedImages
+        .map((image) => image.publicId || cloudinaryPublicIdFromUrl(image.url))
+        .filter(Boolean)
+    );
+    if (legacyImagePublicId) cloudinaryIdsToDelete.add(legacyImagePublicId);
+
+    if (cloudinaryIdsToDelete.size > 0) {
+      const cloudinary = require("../config/cloudinary");
+      const deleteResults = await Promise.allSettled(
+        [...cloudinaryIdsToDelete].map((publicId) => cloudinary.uploader.destroy(publicId))
+      );
+      deleteResults.forEach((result) => {
+        if (result.status === "rejected") {
+          console.error("Cloudinary image removal failed:", result.reason?.message);
+        }
+      });
+    }
+
     return res.status(200).json({
       success: true,
       product,
+      deletedImages: removedImages.length + (deleteLegacyImage ? 1 : 0),
     });
   } catch (error) {
     // Clean up newly uploaded images if the update fails.
@@ -340,6 +404,72 @@ exports.updateProduct = async (req, res) => {
       success: false,
       message: error.message || "Failed to update product.",
     });
+  }
+};
+
+exports.deleteProductImages = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found." });
+    }
+
+    const imageKeys = req.body.imageKeys;
+    if (!Array.isArray(imageKeys) || imageKeys.some((key) => typeof key !== "string")) {
+      return res.status(400).json({ success: false, message: "Invalid image removal request." });
+    }
+
+    const keysToDelete = new Set(imageKeys);
+    const removedImages = product.images.filter((image) =>
+      keysToDelete.has(image.publicId || image.url)
+    );
+    const deleteLegacyImage = Boolean(
+      req.body.deleteLegacyImage &&
+      product.image &&
+      !product.images.some((image) => image.url === product.image)
+    );
+    const legacyImagePublicId = deleteLegacyImage
+      ? cloudinaryPublicIdFromUrl(product.image)
+      : null;
+
+    if (!removedImages.length && !deleteLegacyImage) {
+      return res.status(404).json({ success: false, message: "The selected image was not found on this product." });
+    }
+
+    const primaryImageRemoved = removedImages.some((image) => image.url === product.image);
+    product.images = product.images.filter((image) =>
+      !keysToDelete.has(image.publicId || image.url)
+    );
+    if (primaryImageRemoved || deleteLegacyImage) {
+      product.image = product.images[0]?.url || "";
+    }
+
+    await product.save();
+
+    const cloudinaryIds = new Set(
+      removedImages
+        .map((image) => image.publicId || cloudinaryPublicIdFromUrl(image.url))
+        .filter(Boolean)
+    );
+    if (deleteLegacyImage) {
+      if (legacyImagePublicId) cloudinaryIds.add(legacyImagePublicId);
+    }
+    if (cloudinaryIds.size) {
+      const cloudinary = require("../config/cloudinary");
+      const results = await Promise.allSettled(
+        [...cloudinaryIds].map((publicId) => cloudinary.uploader.destroy(publicId))
+      );
+      results.forEach((result) => {
+        if (result.status === "rejected") {
+          console.error("Cloudinary image removal failed:", result.reason?.message);
+        }
+      });
+    }
+
+    return res.json({ success: true, product, deletedImages: removedImages.length + Number(deleteLegacyImage) });
+  } catch (error) {
+    console.error("Delete product image error:", error);
+    return res.status(500).json({ success: false, message: "Unable to remove product image." });
   }
 };
 

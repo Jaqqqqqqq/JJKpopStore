@@ -13,6 +13,7 @@ router.delete("/admin/product/:id/reviews/:reviewId", protect, adminOnly, produc
 router.get("/admin/products", adminOnly, productController.getAdminProducts);
 router.post("/admin/product/new", adminOnly, upload.array("images", 5), productController.newProduct);
 router.put("/admin/product/:id", adminOnly, upload.array("images", 5), productController.updateProduct);
+router.delete("/admin/product/:id/images", adminOnly, productController.deleteProductImages);
 router.delete("/admin/product/:id", adminOnly, productController.deleteProduct);
 router.delete("/admin/products/bulk-delete", adminOnly, productController.bulkDeleteProducts);
 

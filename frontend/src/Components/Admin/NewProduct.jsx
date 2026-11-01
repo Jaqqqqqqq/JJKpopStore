@@ -90,6 +90,12 @@ const NewProduct = () => {
     formik.setFieldTouched("images", true, false);
   };
 
+  const removeSelectedImage = (index) => {
+    formik.setFieldValue("images", files.filter((_, fileIndex) => fileIndex !== index));
+    const input = document.getElementById("product-images");
+    if (input) input.value = "";
+  };
+
   const fieldError = (name) => formik.touched[name] && formik.errors[name]
     ? <span className="field-error" role="alert">{formik.errors[name]}</span>
     : null;
@@ -164,10 +170,20 @@ const NewProduct = () => {
                 <p>Select up to 5 JPG, PNG, or WEBP images. Maximum 5 MB per image.</p>
 
                 {previews.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginTop: "12px" }}>
+                  <div className="product-image-previews">
                     {previews.map((src, index) => (
-                      <div key={src}>
-                        <img src={src} alt={`Product preview ${index + 1}`} style={{ width: "120px", height: "120px", objectFit: "contain", border: "1px solid #ccc", borderRadius: "8px" }} />
+                      <div className="product-image-preview" key={src}>
+                        <button
+                          type="button"
+                          className="image-remove-button"
+                          aria-label={`Remove image ${index + 1}`}
+                          title="Remove image"
+                          onClick={() => removeSelectedImage(index)}
+                          disabled={loading}
+                        >
+                          ×
+                        </button>
+                        <img src={src} alt={`Product preview ${index + 1}`} />
                         <p>Image {index + 1}</p>
                       </div>
                     ))}
@@ -179,7 +195,7 @@ const NewProduct = () => {
                     formik.setFieldValue("images", []); setError("");
                     const input = document.getElementById("product-images");
                     if (input) input.value = "";
-                  }} disabled={loading}>Clear Selected Images</button>
+                  }} disabled={loading}>Remove All Selected Images</button>
                 )}
               </div>
 

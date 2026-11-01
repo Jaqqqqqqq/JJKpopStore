@@ -39,6 +39,9 @@ const EditProduct = () => {
   const [previews, setPreviews] = useState([]);
   const [artists, setArtists] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [legacyImage, setLegacyImage] = useState("");
+  const [deletingImages, setDeletingImages] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [error, setError] = useState("");
   const [popupOpen, setPopupOpen] = useState(false);
@@ -111,6 +114,8 @@ const EditProduct = () => {
           image: item.image || "",
           images: Array.isArray(item.images) ? item.images : [],
         });
+        setExistingImages(Array.isArray(item.images) ? item.images : []);
+        setLegacyImage(item.image || "");
       } catch (error) {
         if (!cancelled) {
           setError(
@@ -160,9 +165,71 @@ const EditProduct = () => {
     formik.setFieldTouched("images", true, false);
   };
 
+  const imageKey = (image) => image.publicId || image.url;
+  const removeExistingImages = async (imageKeys, removeLegacyImage = false) => {
+    if (deletingImages) return;
+    setDeletingImages(true);
+    const keys = new Set(imageKeys);
+    const primaryImageRemoved = existingImages.some(
+      (image) => image.url === legacyImage && keys.has(imageKey(image))
+    );
+    const remainingImages = existingImages.filter(
+      (image) => !keys.has(imageKey(image))
+    );
+    setExistingImages(remainingImages);
+    if (removeLegacyImage || primaryImageRemoved) {
+      setLegacyImage(remainingImages[0]?.url || "");
+    }
+    try {
+      const { data } = await axios.delete(`${API}/admin/product/${id}/images`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        data: { imageKeys, deleteLegacyImage: removeLegacyImage },
+      });
+      setExistingImages(data.product.images || []);
+      setLegacyImage(data.product.image || "");
+    } catch (requestError) {
+      const message = requestError.response?.data?.message || "Unable to remove product image.";
+      showNotification({ title: "Image removal failed", text: message, icon: "error" });
+      try {
+        const { data } = await axios.get(`${API}/product/${id}`);
+        setExistingImages(data.product.images || []);
+        setLegacyImage(data.product.image || "");
+      } catch {
+        // Keep the current form state if the refresh also fails.
+      }
+    } finally {
+      setDeletingImages(false);
+    }
+  };
+  const removeExistingImage = (image, isLegacy = false) => {
+    removeExistingImages(isLegacy ? [] : [imageKey(image)], isLegacy);
+  };
+  const deleteAllExistingImages = () => {
+    const legacyImageIsSeparate = Boolean(
+      legacyImage && !existingImages.some((image) => image.url === legacyImage)
+    );
+    removeExistingImages(existingImages.map(imageKey), legacyImageIsSeparate);
+  };
+  const removeAllNewImages = () => {
+    formik.setFieldValue("images", []);
+    setError("");
+    const input = document.getElementById("edit-product-images");
+    if (input) input.value = "";
+  };
+  const removeSelectedNewImage = (index) => {
+    formik.setFieldValue("images", files.filter((_, fileIndex) => fileIndex !== index));
+    const input = document.getElementById("edit-product-images");
+    if (input) input.value = "";
+  };
+
   const fieldError = (name) => formik.touched[name] && formik.errors[name]
     ? <span className="field-error" role="alert">{formik.errors[name]}</span>
     : null;
+  const remainingExistingImages = existingImages;
+  const legacyImageVisible = Boolean(
+    legacyImage &&
+    !existingImages.some((image) => image.url === legacyImage)
+  );
 
   if (loadingProduct) {
     return (
@@ -285,45 +352,40 @@ const EditProduct = () => {
               <div className="admin-full-width">
                 <p>Current Product Images</p>
 
-                {product.images.length > 0 ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "12px",
-                    }}
-                  >
-                    {product.images.map((img, index) => (
-                      <div key={img.publicId || img.url || index}>
-                        <img
-                          src={img.url}
-                          alt={`${product.name} ${index + 1}`}
-                          style={{
-                            width: "100px",
-                            height: "100px",
-                            objectFit: "contain",
-                            border: "1px solid #ead5df",
-                            borderRadius: "6px",
-                          }}
-                        />
+                                {remainingExistingImages.length > 0 ? (
+                  <div className="product-image-previews">
+                    {remainingExistingImages.map((img, index) => (
+                      <div className="product-image-preview" key={imageKey(img) || index}>
+                        <button type="button" className="image-remove-button" aria-label={`Remove image ${index + 1}`} title="Remove image" onClick={() => removeExistingImage(img)} disabled={loading || deletingImages}>&times;</button>
+                        <img src={img.url} alt={`${product.name} ${index + 1}`} />
                         <p>Image {index + 1}</p>
                       </div>
                     ))}
                   </div>
-                ) : product.image ? (
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    style={{
-                      width: "100px",
-                      height: "100px",
-                      objectFit: "contain",
-                      border: "1px solid #ead5df",
-                      borderRadius: "6px",
-                    }}
-                  />
+                ) : legacyImageVisible ? (
+                  <div className="product-image-preview">
+                    <button type="button" className="image-remove-button" aria-label="Remove product image" title="Remove image" onClick={() => removeExistingImage({ url: legacyImage }, true)} disabled={loading || deletingImages}>&times;</button>
+                    <img src={legacyImage} alt={product.name} />
+                    <p>Product image</p>
+                  </div>
                 ) : (
-                  <p>No existing image.</p>
+                  <p>No existing images.</p>
+                )}
+                {remainingExistingImages.length > 0 && legacyImageVisible && (
+                  <div className="product-image-previews">
+                    <div className="product-image-preview">
+                      <button type="button" className="image-remove-button" aria-label="Remove additional product image" title="Remove image" onClick={() => removeExistingImage({ url: legacyImage }, true)} disabled={loading || deletingImages}>&times;</button>
+                      <img src={legacyImage} alt={`${product.name} additional image`} />
+                      <p>Additional image</p>
+                    </div>
+                  </div>
+                )}
+                {(remainingExistingImages.length > 0 || legacyImageVisible) && (
+                  <div className="image-management-actions">
+                    <button type="button" className="admin-cancel-button" onClick={deleteAllExistingImages} disabled={loading || deletingImages}>
+                      Remove All Existing Images
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -349,26 +411,13 @@ const EditProduct = () => {
                 </p>
 
                 {previews.length > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "12px",
-                    }}
-                  >
+                  <div className="product-image-previews">
                     {previews.map((src, index) => (
-                      <div key={src}>
-                        <img
-                          src={src}
-                          alt={`New image preview ${index + 1}`}
-                          style={{
-                            width: "100px",
-                            height: "100px",
-                            objectFit: "contain",
-                            border: "1px solid #ead5df",
-                            borderRadius: "6px",
-                          }}
-                        />
+                      <div className="product-image-preview" key={src}>
+                        <button type="button" className="image-remove-button" aria-label={`Remove new image ${index + 1}`} title="Remove image" onClick={() => removeSelectedNewImage(index)} disabled={loading}>
+                          ×
+                        </button>
+                        <img src={src} alt={`New image preview ${index + 1}`} />
                         <p>New image {index + 1}</p>
                       </div>
                     ))}
@@ -379,19 +428,10 @@ const EditProduct = () => {
                   <button
                     type="button"
                     className="admin-cancel-button"
-                    onClick={() => {
-                      formik.setFieldValue("images", []);
-                      setError("");
-
-                      const input = document.getElementById(
-                        "edit-product-images"
-                      );
-
-                      if (input) input.value = "";
-                    }}
+                    onClick={removeAllNewImages}
                     disabled={loading}
                   >
-                    Clear New Images
+                    Remove All New Images
                   </button>
                 )}
               </div>
