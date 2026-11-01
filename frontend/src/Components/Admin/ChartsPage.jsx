@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import SalesChart from "./SalesChart";
 import "../../App.css";
+import AdminSidebarActions from "./AdminSidebarActions";
 
 export default function ChartsPage() {
   return (
@@ -17,7 +18,7 @@ export default function ChartsPage() {
           <Link to="/admin/reviews">Reviews</Link>
           <Link to="/admin/users">Users</Link>
         </nav>
-        <Link to="/" className="admin-logout">Back to Store</Link>
+        <AdminSidebarActions />
       </aside>
 
       <main className="admin-main">

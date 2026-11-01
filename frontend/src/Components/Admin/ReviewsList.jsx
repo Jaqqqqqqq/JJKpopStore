@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import CustomModal from "../Common/CustomModal";
 import "../../App.css";
 import { showNotification } from "../../utils/notifications";
+import AdminSidebarActions from "./AdminSidebarActions";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000/api/v1";
 
@@ -67,7 +68,7 @@ export default function ReviewsList() {
           <Link to="/admin/reviews" className="active">Reviews</Link>
           <Link to="/admin/users">Users</Link>
         </nav>
-        <Link to="/" className="admin-logout">Back to Store</Link>
+        <AdminSidebarActions />
       </aside>
       <main className="admin-main">
         <section className="orders-card">

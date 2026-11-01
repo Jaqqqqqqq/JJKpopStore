@@ -7,6 +7,7 @@ import "../../App.css";
 import CustomModal from "../Common/CustomModal";
 import { editProductValidationSchema } from "../../schemas/formSchemas";
 import { showNotification } from "../../utils/notifications";
+import AdminSidebarActions from "./AdminSidebarActions";
 
 const API =
   import.meta.env.VITE_API || "http://localhost:5000/api/v1";
@@ -259,9 +260,7 @@ const EditProduct = () => {
             <Link to="/admin/users">Users</Link>
           </nav>
 
-          <a href="/" className="admin-logout">
-            Back to Store
-          </a>
+          <AdminSidebarActions />
         </aside>
 
         <main className="admin-main">

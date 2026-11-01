@@ -1155,6 +1155,33 @@ footer {
   margin-top: auto;
 }
 
+.admin-sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.admin-sidebar-actions .admin-logout {
+  margin-top: 0;
+}
+
+.admin-logout-button {
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: white;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-logout-button:hover {
+  background: #594250;
+}
+
 .admin-main {
   flex: 1;
   min-width: 0;

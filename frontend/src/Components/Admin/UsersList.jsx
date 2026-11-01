@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import "../../App.css";
 import CustomModal from "../Common/CustomModal";
+import AdminSidebarActions from "./AdminSidebarActions";
 
 const API =
   import.meta.env.VITE_API || "http://localhost:5000/api/v1";
@@ -168,9 +169,7 @@ const UsersList = () => {
           <Link to="/admin/users">Users</Link>
         </nav>
 
-        <Link to="/" className="admin-logout">
-          Back to Store
-        </Link>
+        <AdminSidebarActions />
       </aside>
 
       <main className="admin-main">
