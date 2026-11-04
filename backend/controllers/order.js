@@ -208,9 +208,47 @@ exports.newOrder = async (req, res) => {
       createdOrder = orders[0];
     });
 
+    let emailSent = false;
+    let emailMessage = " Order confirmation email could not be sent. Check the SMTP settings and customer email address.";
+    try {
+      const User = require("../models/user");
+      const customer = await User.findById(req.user._id).select("name email");
+      if (!customer?.email) throw new Error("Customer email address is unavailable.");
+
+      const productRows = createdOrder.orderItems.map((item, index) => `
+        <tr style="background-color:${index % 2 ? "#fffafd" : "#ffffff"}">
+          <td style="padding:13px 12px;border-bottom:1px solid #f3e5ec;color:#352536;font-size:14px;line-height:1.45">${escapeHtml(item.name)}</td>
+          <td style="padding:13px 8px;border-bottom:1px solid #f3e5ec;text-align:center;color:#645564;font-size:13px">${Number(item.quantity)}</td>
+          <td style="padding:13px 8px;border-bottom:1px solid #f3e5ec;text-align:right;color:#645564;font-size:13px;white-space:nowrap">${formatCurrency(item.price)}</td>
+          <td style="padding:13px 12px;border-bottom:1px solid #f3e5ec;text-align:right;color:#352536;font-size:13px;font-weight:700;white-space:nowrap">${formatCurrency(Number(item.price) * Number(item.quantity))}</td>
+        </tr>`).join("");
+      const html = `
+        <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">Your J&amp;J K-POP order is confirmed. Your itemized receipt is attached.</div>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;padding:28px 12px;background-color:#fff6fa;font-family:Arial,Helvetica,sans-serif;color:#352536">
+          <tr><td align="center"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:680px;background:#ffffff;border:1px solid #f0dce5;border-radius:18px;overflow:hidden">
+            <tr><td style="padding:26px 32px;background-color:#321d32;border-bottom:5px solid #ed5791"><table role="presentation" width="100%"><tr><td style="font-size:22px;font-weight:800;color:#ffffff">J&amp;J <span style="color:#ff79ad">K-POP</span> &#9825;<div style="padding-top:6px;font-size:11px;letter-spacing:2px;color:#f8dce8">MERCHANDISE STORE</div></td><td align="right" style="font-size:11px;color:#f8dce8">ORDER CONFIRMATION<br><span style="font-size:13px;font-weight:700;color:#fff">#${escapeHtml(String(createdOrder._id).slice(-8).toUpperCase())}</span></td></tr></table></td></tr>
+            <tr><td style="padding:30px 32px 18px"><p style="margin:0 0 8px;font-size:14px;color:#786879">Hello ${escapeHtml(customer.name || "Customer")},</p><h1 style="margin:0 0 12px;font-size:25px;color:#352536">Thank you for your order!</h1><p style="margin:0;color:#786879;font-size:14px;line-height:1.65">We have received your J&amp;J K-POP purchase and will keep you updated as it is processed.</p><table role="presentation" style="margin-top:20px"><tr><td style="padding:8px 14px;border-radius:20px;background:#fff3d6;color:#805400;font-size:13px;font-weight:700">${escapeHtml(createdOrder.orderStatus)}</td><td style="padding-left:12px;color:#786879;font-size:12px">Order #${escapeHtml(String(createdOrder._id))}</td></tr></table></td></tr>
+            <tr><td style="padding:8px 32px"><h2 style="margin:0 0 12px;font-size:16px;color:#352536">Products / Services</h2><table cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #f0e3e9;border-radius:10px;border-collapse:separate;border-spacing:0;overflow:hidden"><thead><tr style="background:#fff0f6"><th align="left" style="padding:11px 12px;color:#914363;font-size:11px;text-transform:uppercase">Item</th><th style="padding:11px 8px;color:#914363;font-size:11px;text-transform:uppercase">Qty</th><th align="right" style="padding:11px 8px;color:#914363;font-size:11px;text-transform:uppercase">Unit price</th><th align="right" style="padding:11px 12px;color:#914363;font-size:11px;text-transform:uppercase">Subtotal</th></tr></thead><tbody>${productRows}</tbody></table></td></tr>
+            <tr><td style="padding:18px 32px 28px"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td></td><td width="270"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size:13px;color:#786879"><tr><td style="padding:6px 0">Subtotal</td><td align="right" style="padding:6px 0;color:#352536;font-weight:700">${formatCurrency(createdOrder.itemsPrice)}</td></tr><tr><td style="padding:6px 0">Tax</td><td align="right" style="padding:6px 0">${formatCurrency(createdOrder.taxPrice)}</td></tr><tr><td style="padding:6px 0 12px">Shipping</td><td align="right" style="padding:6px 0 12px">${formatCurrency(createdOrder.shippingPrice)}</td></tr><tr><td colspan="2" style="border-top:1px solid #ecdce4"></td></tr><tr><td style="padding:13px 0 0;font-size:15px;color:#352536;font-weight:800">Grand total</td><td align="right" style="padding:13px 0 0;color:#d84480;font-size:17px;font-weight:800">${formatCurrency(createdOrder.totalPrice)}</td></tr></table></td></tr></table><table role="presentation" width="100%" style="margin-top:22px;background:#fff6fa;border:1px solid #f4e1e9;border-radius:10px"><tr><td style="padding:14px 16px;color:#665769;font-size:13px;line-height:1.6"><strong style="color:#352536">Your receipt is attached</strong><br>Keep the PDF receipt for your transaction records.</td><td align="right" style="padding:14px 16px;font-size:22px;color:#ed5791">&#128196;</td></tr></table></td></tr>
+            <tr><td align="center" style="padding:18px 24px;background:#321d32;color:#e8d9e4;font-size:11px;line-height:1.6">Thank you for shopping with J&amp;J K-POP &#9825;<br><span style="color:#cbb8c8">This is an automated order confirmation.</span></td></tr>
+          </table></td></tr>
+        </table>`;
+      await sendEmail({
+        email: customer.email,
+        subject: `Order ${String(createdOrder._id).slice(-8).toUpperCase()} confirmed`,
+        html,
+        attachments: [{ filename: `receipt-${createdOrder._id}.pdf`, content: createOrderReceiptPdf(createdOrder), contentType: "application/pdf" }],
+      });
+      emailSent = true;
+      emailMessage = " Confirmation email and PDF receipt sent.";
+    } catch (emailError) {
+      console.error("Order confirmation email failed:", emailError.message);
+    }
+
     return res.status(201).json({
       success: true,
-      message: "Order created successfully",
+      message: `Order created successfully.${emailMessage}`,
+      emailSent,
       order: createdOrder,
     });
   } catch (error) {

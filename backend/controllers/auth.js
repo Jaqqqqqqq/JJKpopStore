@@ -4,6 +4,9 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { cert, getApps, initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
+const crypto = require("crypto");
+const validator = require("validator");
+const sendEmail = require("../utils/sendEmail");
 
 function createAppToken(user) {
   return jwt.sign(
@@ -143,6 +146,83 @@ exports.loginUser = async (req, res) => {
       success: false,
       message: "Unable to log in"
     });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ success: false, message: "Enter a valid email address." });
+    }
+
+    const user = await User.findOne({ email }).select("+password");
+    // Keep the response identical whether or not this email belongs to an account.
+    if (!user || !user.password || user.isActive === false) {
+      return res.status(200).json({ success: true, message: "If an account exists for that email, a password reset link has been sent." });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    user.passwordResetTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    user.passwordResetExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await user.save();
+
+    const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
+    const resetUrl = `${frontendUrl}/reset-password/${token}`;
+    const html = `
+      <div style="margin:0;padding:32px 12px;background:#fff6fa;font-family:Arial,Helvetica,sans-serif;color:#352536">
+        <div style="max-width:560px;margin:auto;background:#fff;border:1px solid #f0dce5;border-radius:16px;overflow:hidden">
+          <div style="padding:24px 30px;background:#321d32;border-bottom:5px solid #ed5791;color:#fff;font-size:21px;font-weight:800">J&amp;J <span style="color:#ff79ad">K-POP</span> &#9825;</div>
+          <div style="padding:30px"><p style="margin:0 0 8px;color:#786879">Hello ${String(user.name || "Customer").replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))},</p>
+            <h1 style="margin:0 0 12px;font-size:24px">Reset your password</h1>
+            <p style="color:#786879;line-height:1.6">Click below to choose a new password for your J&amp;J K-POP account. This link expires in one hour and can only be used once.</p>
+            <p style="margin:26px 0"><a href="${resetUrl}" style="display:inline-block;padding:14px 22px;border-radius:24px;background:#ed5791;color:#fff;text-decoration:none;font-weight:700">Change password</a></p>
+            <p style="color:#786879;font-size:12px;line-height:1.6">If you did not request a password reset, you can ignore this email.</p>
+          </div><div style="padding:16px;text-align:center;background:#321d32;color:#e8d9e4;font-size:11px">J&amp;J K-POP Store</div>
+        </div>
+      </div>`;
+
+    try {
+      await sendEmail({ email: user.email, subject: "Reset your J&J K-POP password", html });
+    } catch (emailError) {
+      user.passwordResetTokenHash = undefined;
+      user.passwordResetExpiresAt = undefined;
+      await user.save();
+      throw emailError;
+    }
+
+    return res.status(200).json({ success: true, message: "If an account exists for that email, a password reset link has been sent." });
+  } catch (error) {
+    console.error("Password reset email failed:", error.message);
+    return res.status(503).json({ success: false, message: "Unable to send a password reset email. Check the SMTP settings and try again." });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (typeof token !== "string" || !token || typeof password !== "string" || password.length < 6) {
+      return res.status(400).json({ success: false, message: "Enter a password with at least 6 characters." });
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: { $gt: new Date() },
+    }).select("+passwordResetTokenHash +passwordResetExpiresAt +password");
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: "This password reset link is invalid or has expired. Request a new link." });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.passwordResetTokenHash = undefined;
+    user.passwordResetExpiresAt = undefined;
+    await user.save();
+    return res.status(200).json({ success: true, message: "Password changed successfully. You can now log in." });
+  } catch (error) {
+    console.error("Password reset failed:", error.message);
+    return res.status(500).json({ success: false, message: "Unable to change password." });
   }
 };
 

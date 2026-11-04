@@ -831,6 +831,29 @@ footer {
   font-size: 13px;
 }
 
+.form-message-success {
+  color: #267448;
+  background: #edf9f1;
+}
+
+.auth-forgot {
+  display: block;
+  margin: -5px 0 12px auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #e84f89;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.auth-forgot:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .auth-switch {
   text-align: center;
   color: #77707b;

@@ -5,6 +5,8 @@ import { useFormik } from "formik";
 import { authenticate, authenticateGoogle } from "../../actions/userActions";
 import { signInWithGoogle } from "../../firebase";
 import { showNotification } from "../../utils/notifications";
+import axios from "axios";
+import { API } from "../../api";
 import {
   loginValidationSchema,
   registerValidationSchema,
@@ -23,6 +25,7 @@ export default function AuthPage({ mode, onAuth }) {
   const isRegister = mode === "register";
   const [message, setMessage] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [resetRequested, setResetRequested] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -107,6 +110,23 @@ export default function AuthPage({ mode, onAuth }) {
       showNotification({ title: "Google sign-in failed", text: message, icon: "error" });
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const email = formik.values.email.trim();
+    if (!email) {
+      setMessage("Enter your email address first, then choose Forgot password?");
+      return;
+    }
+    setMessage("");
+    setResetRequested(false);
+    try {
+      const { data } = await axios.post(`${API}/forgot-password`, { email });
+      setMessage(data.message);
+      setResetRequested(true);
+    } catch (error) {
+      setMessage(error.response?.data?.message || "Unable to send a reset link. Please try again.");
     }
   };
 
@@ -199,7 +219,13 @@ export default function AuthPage({ mode, onAuth }) {
             {fieldError("password")}
           </label>
 
-          {message && <p className="form-message" role="alert">{message}</p>}
+          {!isRegister && (
+            <button className="auth-forgot" type="button" onClick={handleForgotPassword} disabled={formik.isSubmitting}>
+              Forgot password?
+            </button>
+          )}
+
+          {message && <p className={`form-message${resetRequested ? " form-message-success" : ""}`} role="status">{message}</p>}
 
           <button className="auth-submit" disabled={formik.isSubmitting || googleLoading}>
             {formik.isSubmitting

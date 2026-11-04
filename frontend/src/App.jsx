@@ -4,6 +4,7 @@ import { AUTH_SUCCESS } from "./actions/userActions";
 import ProtectedRoute from "./Components/Route/ProtectedRoute";
 import Home from "./Components/Home";
 import AuthPage from "./Components/User/AuthPage";
+import ResetPasswordPage from "./Components/User/ResetPasswordPage";
 import AdminDashboard from "./Components/Admin/AdminDashboard";
 import NewProduct from "./Components/Admin/NewProduct";
 import EditProduct from "./Components/Admin/EditProduct";
@@ -49,6 +50,7 @@ function StoreApp() {
         path="/register"
         element={<AuthPage mode="register" onAuth={saveUser} />}
       />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/charts" element={<ChartsPage />} />
