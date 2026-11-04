@@ -39,8 +39,6 @@ const userSchema = new mongoose.Schema({
     minlength: 6,
     select: false
   },
-  passwordResetTokenHash: { type: String, select: false },
-  passwordResetExpiresAt: { type: Date, select: false },
   googleId: {
     type: String,
     unique: true,

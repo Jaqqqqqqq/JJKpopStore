@@ -25,7 +25,6 @@ export default function AuthPage({ mode, onAuth }) {
   const isRegister = mode === "register";
   const [message, setMessage] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [resetRequested, setResetRequested] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -121,12 +120,10 @@ export default function AuthPage({ mode, onAuth }) {
       return;
     }
     setMessage("");
-    setResetRequested(false);
     setResetLoading(true);
     try {
-      const { data } = await axios.post(`${API}/forgot-password`, { email });
-      setMessage(data.message);
-      setResetRequested(true);
+      await axios.post(`${API}/password/forgot`, { email });
+      navigate("/password/forgot", { state: { email } });
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to send a reset link. Please try again.");
     } finally {
@@ -225,11 +222,11 @@ export default function AuthPage({ mode, onAuth }) {
 
           {!isRegister && (
             <button className="auth-forgot" type="button" onClick={handleForgotPassword} disabled={formik.isSubmitting || resetLoading}>
-              {resetLoading ? "Sending reset email..." : "Forgot password?"}
+              {resetLoading ? "Checking email..." : "Forgot password?"}
             </button>
           )}
 
-          {message && <p className={`form-message${resetRequested ? " form-message-success" : ""}`} role="status">{message}</p>}
+          {message && <p className="form-message" role="status">{message}</p>}
 
           <button className="auth-submit" disabled={formik.isSubmitting || googleLoading}>
             {formik.isSubmitting

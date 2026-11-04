@@ -50,7 +50,7 @@ function StoreApp() {
         path="/register"
         element={<AuthPage mode="register" onAuth={saveUser} />}
       />
-      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+      <Route path="/password/forgot" element={<ResetPasswordPage />} />
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/charts" element={<ChartsPage />} />
