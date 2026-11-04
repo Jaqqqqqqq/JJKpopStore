@@ -26,6 +26,7 @@ export default function AuthPage({ mode, onAuth }) {
   const [message, setMessage] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resetRequested, setResetRequested] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -121,12 +122,15 @@ export default function AuthPage({ mode, onAuth }) {
     }
     setMessage("");
     setResetRequested(false);
+    setResetLoading(true);
     try {
       const { data } = await axios.post(`${API}/forgot-password`, { email });
       setMessage(data.message);
       setResetRequested(true);
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to send a reset link. Please try again.");
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -220,8 +224,8 @@ export default function AuthPage({ mode, onAuth }) {
           </label>
 
           {!isRegister && (
-            <button className="auth-forgot" type="button" onClick={handleForgotPassword} disabled={formik.isSubmitting}>
-              Forgot password?
+            <button className="auth-forgot" type="button" onClick={handleForgotPassword} disabled={formik.isSubmitting || resetLoading}>
+              {resetLoading ? "Sending reset email..." : "Forgot password?"}
             </button>
           )}
 

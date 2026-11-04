@@ -157,9 +157,8 @@ exports.forgotPassword = async (req, res) => {
     }
 
     const user = await User.findOne({ email }).select("+password");
-    // Keep the response identical whether or not this email belongs to an account.
     if (!user || !user.password || user.isActive === false) {
-      return res.status(200).json({ success: true, message: "If an account exists for that email, a password reset link has been sent." });
+      return res.status(404).json({ success: false, message: "No active password-based account was found for that email." });
     }
 
     const token = crypto.randomBytes(32).toString("hex");
@@ -167,7 +166,10 @@ exports.forgotPassword = async (req, res) => {
     user.passwordResetExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await user.save();
 
-    const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
+    const defaultFrontendUrl = process.env.NODE_ENV === "production"
+      ? "https://ji-kpop-frontend.onrender.com"
+      : "http://localhost:5173";
+    const frontendUrl = (process.env.FRONTEND_URL || defaultFrontendUrl).replace(/\/$/, "");
     const resetUrl = `${frontendUrl}/reset-password/${token}`;
     const html = `
       <div style="margin:0;padding:32px 12px;background:#fff6fa;font-family:Arial,Helvetica,sans-serif;color:#352536">
@@ -191,7 +193,7 @@ exports.forgotPassword = async (req, res) => {
       throw emailError;
     }
 
-    return res.status(200).json({ success: true, message: "If an account exists for that email, a password reset link has been sent." });
+    return res.status(200).json({ success: true, message: "Password reset email sent. Check the Mailtrap inbox connected to this SMTP account." });
   } catch (error) {
     console.error("Password reset email failed:", error.message);
     return res.status(503).json({ success: false, message: "Unable to send a password reset email. Check the SMTP settings and try again." });
